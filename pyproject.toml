@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "telegram-notify-bot"
+version = "1.0.0"
+description = "Transactional notification bot for Telegram"
+authors = ["Ihor Senkiv"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+flask = "^3.0"
+requests = "^2.31"
+sqlalchemy = "^2.0"
+psycopg2-binary = "^2.9"
+pre-commit = "^4.0.1"
+gunicorn = "^21.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+
+[tool.flake8]
+ignore = ["E203", "E266", "D400", "D401", "D104"]
+max-line-length = 120
+exclude = [".git", "__pycache__", "build", "dist", ".venv", "venv"]
+extend-ignore = ["D203"]
+
+# Specify per-file ignores
+per-file-ignores = [
+    "core/*.py:D100,D101,D102,D103,D104,D106,D107,D205,E501",
+    "infrastructure/*.py:D100,D101,D102,D103,D104,D107,D205,F541",
+    "services/*.py:D100,D101,D102,D103,D104,D106,D107,D205,E501",
+    "tests/*.py:D100,D101,D102,D103,D104,D106,D107,D205,E501",
+    "main.py:D100,D101,D102,D103,D104,D106,D107,D205,E501",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
+
+testpaths = [
+    "tests"
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
