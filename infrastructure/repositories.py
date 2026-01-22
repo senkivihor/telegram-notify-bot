@@ -1,0 +1,40 @@
+from sqlalchemy.orm import Session
+from infrastructure.database import UserORM, SessionLocal
+from core.interfaces import IUserRepository
+from core.models import UserDTO
+
+
+class SqlAlchemyUserRepository(IUserRepository):
+    def __init__(self):
+        # We use a session factory to create a new DB session for every request
+        self._session_factory = SessionLocal
+
+    def save_or_update_user(self, phone: str, name: str, telegram_id: str) -> None:
+        with self._session_factory() as session:
+            # 1. Try to find existing user by phone
+            user = session.query(UserORM).filter_by(phone_number=phone).first()
+
+            if user:
+                # Update existing
+                user.name = name
+                user.telegram_id = telegram_id
+            else:
+                # Create new
+                new_user = UserORM(phone_number=phone, name=name, telegram_id=telegram_id)
+                session.add(new_user)
+
+            # Commit changes to DB
+            session.commit()
+
+    def get_user_by_phone(self, phone: str) -> UserDTO | None:
+        with self._session_factory() as session:
+            user = session.query(UserORM).filter_by(phone_number=phone).first()
+
+            if user:
+                # Convert Database Object (ORM) -> Data Transfer Object (DTO)
+                return UserDTO(
+                    phone_number=user.phone_number,
+                    name=user.name,
+                    telegram_id=user.telegram_id,
+                )
+            return None

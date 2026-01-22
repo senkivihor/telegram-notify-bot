@@ -1,2 +1,126 @@
-# telegram-notify-bot
-Free transactional notification bot for Telegram. Features deep-link onboarding, secure internal API triggers, and automatic user-to-phone mapping.
+🔔 Telegram Notification Bot
+A production-grade, secure notification service for sending transactional updates (e.g., "Order Ready", "Payment Received") to clients via Telegram. Built with Python (Flask), PostgreSQL, and Docker, following Hexagonal Architecture principles. A simplified deep link onboarding flow eliminates manual user registration.
+
+## Key Features
+- ⚡ Frictionless onboarding via deep links (t.me/MyBot?start=ORD-123) or "Share Contact"; no passwords or sign-ups.
+- 🔒 Secure phone mapping that links a client's phone number to their Telegram Chat ID in PostgreSQL.
+- 🛡️ Internal API gateway: protected /trigger-notification endpoint for CRM/website/warehouse systems.
+- 🐳 Fully Dockerized with a single docker-compose command.
+- 🏗️ Hexagonal Architecture keeps business logic decoupled and testable.
+
+## Tech Stack
+- Language: Python 3.11
+- Framework: Flask 3.0
+- Database: PostgreSQL 15
+- Dependency manager: Poetry
+- Containerization: Docker & Docker Compose
+- Testing: Pytest
+
+## Project Structure
+```text
+/telegram-notify-bot
+├── core/                   # Domain models & interfaces (pure Python)
+├── infrastructure/         # Adapters (database, Telegram API)
+├── services/               # Business logic (notification service)
+├── tests/                  # Unit tests
+├── main.py                 # Application entry point (webhooks)
+├── docker-compose.yml      # Orchestration
+├── Dockerfile              # Container definition
+└── pyproject.toml          # Dependencies
+```
+
+## Getting Started
+### 1. Prerequisites
+- Docker & Docker Compose installed.
+- Telegram Bot Token (from @BotFather).
+- Generated Internal API Key (to secure the trigger endpoint).
+
+### 2. Configuration
+Create a .env file in the project root (do not commit this file):
+
+```bash
+# .env
+# 1. Get this from @BotFather
+TELEGRAM_BOT_TOKEN=123456789:ABCdef-GHIjkl...
+
+# 2. Generate a strong random string (e.g., using 'openssl rand -hex 32')
+INTERNAL_API_KEY=my_secure_secret_key_change_me
+```
+
+### 3. Run with Docker
+Start the application and database:
+
+```bash
+docker-compose up --build -d
+```
+
+Application: http://localhost:5000
+
+### 4. Set the Webhook
+Tell Telegram where your bot is hosted (replace <YOUR_DOMAIN> and <YOUR_TOKEN>):
+
+```bash
+curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMAIN>/webhook/telegram"
+```
+
+> If running locally, use a tool like ngrok to get a public HTTPS URL.
+
+## Usage Guide
+### 1. Client Onboarding (User Flow)
+1. Send a deep link via SMS or email when an order is placed (e.g., https://t.me/YourBotName?start=ORD-5501).
+2. User taps the link and hits "Start" in Telegram.
+3. Bot prompts to "Share Phone Number".
+4. Phone number is mapped to the user's Chat ID and stored.
+
+### 2. Triggering Notifications (API)
+- Endpoint: POST /trigger-notification
+- Headers:
+  - Content-Type: application/json
+  - X-Internal-API-Key: <YOUR_INTERNAL_KEY>
+- Body example:
+
+```json
+{
+  "phone": "+380501234567",
+  "order_id": "ORD-5501",
+  "items": ["Laptop", "Wireless Mouse"]
+}
+```
+
+Example request (cURL):
+
+```bash
+curl -X POST http://localhost:5000/trigger-notification \
+     -H "Content-Type: application/json" \
+     -H "X-Internal-API-Key: my_secure_secret_key_change_me" \
+     -d '{"phone": "+380501234567", "order_id": "ORD-5501", "items": ["Pizza"]}'
+```
+
+Responses:
+- 200 OK: {"status": "Success"} (message sent)
+- 200 OK: {"status": "Failed: User not found"} (user has not started the bot)
+- 403 Forbidden: invalid API key
+
+## Development & Testing
+The project uses pytest; external calls (Telegram API, DB) are mocked, so tests run offline.
+
+Option A: inside Docker (recommended):
+
+```bash
+docker-compose exec bot pytest
+```
+
+Option B: locally:
+
+```bash
+# Install dependencies
+poetry install
+
+# Run tests
+poetry run pytest
+```
+
+## Security Best Practices
+- Never commit .env to version control.
+- Rotate your INTERNAL_API_KEY periodically.
+- Run behind a reverse proxy (Nginx or Traefik) with SSL (HTTPS) in production; Telegram webhooks require HTTPS.

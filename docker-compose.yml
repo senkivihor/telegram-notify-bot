@@ -1,0 +1,41 @@
+services:
+  # Database
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: bot_admin
+      POSTGRES_PASSWORD: secret_password
+      POSTGRES_DB: telegram_bot_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - bot_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bot_admin -d telegram_bot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # The Python Bot
+  bot:
+    build: .
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://bot_admin:secret_password@db:5432/telegram_bot_db
+    networks:
+      - bot_net
+
+volumes:
+  pg_data:
+
+networks:
+  bot_net:
+    driver: bridge
