@@ -60,7 +60,7 @@ def test_telegram_share_contact(client, mock_dependencies):
     assert response.status_code == 200
 
     # 1. Ensure user is saved to DB (Normalizes phone to +123...)
-    mock_repo.save_or_update_user.assert_called_once_with(phone="+1234567890", name="Alice", telegram_id="999")
+    mock_repo.save_or_update_user.assert_called_once_with(phone_number="+1234567890", name="Alice", telegram_id="999")
 
     # 2. Ensure success message is sent back
     mock_telegram.send_message.assert_called_once()
@@ -79,7 +79,7 @@ def test_trigger_success(client, mock_dependencies):
     mock_repo, mock_telegram = mock_dependencies
 
     # Setup Mock: DB finds the user
-    mock_user = UserDTO(phone="+123", name="Bob", telegram_id="555")
+    mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555")
     mock_repo.get_user_by_phone.return_value = mock_user
 
     # Setup Mock: Telegram sends successfully
@@ -87,7 +87,7 @@ def test_trigger_success(client, mock_dependencies):
 
     # Make the Request
     headers = {"X-Internal-API-Key": "test_secret_key"}
-    data = {"phone": "+123", "order_id": "ORD-101", "items": ["Burger", "Coke"]}
+    data = {"phone_number": "+123", "order_id": "ORD-101", "items": ["Burger", "Coke"]}
 
     response = client.post("/trigger-notification", json=data, headers=headers)
 
@@ -125,7 +125,7 @@ def test_trigger_telegram_api_failure(client, mock_dependencies):
     mock_repo, mock_telegram = mock_dependencies
 
     # Setup Mock: DB finds the user
-    mock_user = UserDTO(phone="+123", name="Bob", telegram_id="555")
+    mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555")
     mock_repo.get_user_by_phone.return_value = mock_user
 
     # Setup Mock: Telegram fails to send
@@ -133,7 +133,7 @@ def test_trigger_telegram_api_failure(client, mock_dependencies):
 
     # Make the Request
     headers = {"X-Internal-API-Key": "test_secret_key"}
-    data = {"phone": "+123", "order_id": "ORD-102", "items": ["Pizza", "Soda"]}
+    data = {"phone_number": "+123", "order_id": "ORD-102", "items": ["Pizza", "Soda"]}
 
     response = client.post("/trigger-notification", json=data, headers=headers)
 
