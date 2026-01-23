@@ -81,5 +81,9 @@ def trigger():
     return {"status": result}, 200
 
 
+# === RUN SERVER ===
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # Use the PORT environment variable if available, otherwise 5000
+    port = int(os.environ.get("PORT", 5000))
+    # '0.0.0.0' is required for Docker containers to be accessible
+    app.run(host="0.0.0.0", port=port)
