@@ -55,7 +55,7 @@ def telegram_webhook():
             repo.save_or_update_user(phone_number=phone_number, name=name, telegram_id=str(chat_id))
 
             # Confirm
-            telegram.send_message(chat_id, "✅ Connected! You will receive order updates here.")
+            telegram.send_message(chat_id, "✅ Підключено! Ви отримуватимете оновлення замовлень тут.")
 
     return Response("OK", 200)
 
