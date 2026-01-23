@@ -1,5 +1,7 @@
-import requests
 import logging
+
+
+import requests
 
 
 class TelegramAdapter:
@@ -26,7 +28,7 @@ class TelegramAdapter:
             "keyboard": [
                 [
                     {
-                        "text": "📱 Share Phone Number to Connect Order",
+                        "text": "📱 Поділитися номером для замовлення",
                         "request_contact": True,
                     }
                 ]
@@ -36,7 +38,7 @@ class TelegramAdapter:
         }
         payload = {
             "chat_id": chat_id,
-            "text": "👋 Welcome! Please tap the button below to link your account.",
+            "text": "👋 Вітаємо! Натисніть кнопку нижче, щоб прив'язати ваш акаунт.",
             "reply_markup": keyboard,
         }
         requests.post(url, json=payload)
