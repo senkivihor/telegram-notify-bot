@@ -1,7 +1,10 @@
-import pytest
-from unittest.mock import MagicMock, patch
-from main import app
+from unittest.mock import patch
+
 from core.models import UserDTO
+
+from main import app
+
+import pytest
 
 # --- FIXTURES (Setup) ---
 
@@ -140,3 +143,49 @@ def test_trigger_telegram_api_failure(client, mock_dependencies):
     # Assertions
     assert response.status_code == 200
     assert "Failed" in response.json["status"]
+
+
+def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
+    mock_repo, mock_telegram = mock_dependencies
+
+    payload = {"message": {"chat": {"id": 111}, "text": "hello"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_repo.save_or_update_user.assert_not_called()
+    mock_telegram.ask_for_phone.assert_not_called()
+    mock_telegram.send_message.assert_not_called()
+
+
+def test_telegram_start_with_deep_link(client, mock_dependencies):
+    mock_repo, mock_telegram = mock_dependencies
+
+    payload = {"message": {"chat": {"id": 4242}, "text": "/start ORD-123"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_telegram.ask_for_phone.assert_called_once_with(4242)
+
+
+def test_trigger_wrong_key(client):
+    headers = {"X-Internal-API-Key": "wrong"}
+
+    response = client.post("/trigger-notification", json={}, headers=headers)
+
+    assert response.status_code == 403
+
+
+def test_trigger_missing_phone_fails(client, mock_dependencies):
+    mock_repo, mock_telegram = mock_dependencies
+    mock_repo.get_user_by_phone.return_value = None
+
+    headers = {"X-Internal-API-Key": "test_secret_key"}
+    data = {"order_id": "ORD-500", "items": ["Tea"]}
+
+    response = client.post("/trigger-notification", json=data, headers=headers)
+
+    assert response.status_code == 200
+    assert "Failed" in response.json["status"]
+    mock_telegram.send_message.assert_not_called()

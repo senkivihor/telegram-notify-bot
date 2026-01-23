@@ -3,7 +3,6 @@ name = "telegram-notify-bot"
 version = "1.0.0"
 description = "Transactional notification bot for Telegram"
 authors = ["Ihor Senkiv"]
-package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.11"

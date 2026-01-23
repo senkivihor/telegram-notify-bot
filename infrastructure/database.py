@@ -1,10 +1,23 @@
 import os
-from sqlalchemy import create_engine, Column, String, Integer
-from sqlalchemy.orm import sessionmaker, declarative_base
+
+from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # Connect to DB
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bot.db")
-engine = create_engine(DATABASE_URL)
+
+_is_sqlite_memory = DATABASE_URL.startswith("sqlite:///:memory:")
+
+if _is_sqlite_memory:
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+else:
+    engine = create_engine(DATABASE_URL)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 

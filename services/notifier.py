@@ -7,9 +7,9 @@ class NotificationService:
         self.repo = repo
         self.telegram = telegram
 
-    def notify_order_ready(self, phone: str, order_id: str, items: list) -> str:
+    def notify_order_ready(self, phone_number: str, order_id: str, items: list) -> str:
         # 1. Find user by phone
-        user = self.repo.get_user_by_phone(phone)
+        user = self.repo.get_user_by_phone(phone_number)
 
         if not user:
             return "Failed: User not found (Not subscribed to bot)"
