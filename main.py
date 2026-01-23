@@ -1,11 +1,13 @@
-import os
 import logging
-from flask import Flask, request, Response
+import os
+
+from flask import Flask, Response, request
 
 # Imports
 from infrastructure.database import init_db
 from infrastructure.repositories import SqlAlchemyUserRepository
 from infrastructure.telegram_adapter import TelegramAdapter
+
 from services.notifier import NotificationService
 
 # Setup
@@ -21,7 +23,6 @@ INTERNAL_KEY = os.getenv("INTERNAL_API_KEY")
 init_db()
 repo = SqlAlchemyUserRepository()
 telegram = TelegramAdapter(TELEGRAM_TOKEN)
-service = NotificationService(repo, telegram)
 
 
 # ==========================
@@ -43,15 +44,15 @@ def telegram_webhook():
         # B. Handle "Shared Phone Number"
         elif "contact" in msg:
             contact = msg["contact"]
-            phone = contact["phone_number"]
+            phone_number = contact["phone_number"]
             # Standardize phone format
-            if not phone.startswith("+"):
-                phone = "+" + phone
+            if not phone_number.startswith("+"):
+                phone_number = "+" + phone_number
 
             name = contact.get("first_name", "Client")
 
             # Save User to DB
-            repo.save_or_update_user(phone=phone, name=name, telegram_id=str(chat_id))
+            repo.save_or_update_user(phone_number=phone_number, name=name, telegram_id=str(chat_id))
 
             # Confirm
             telegram.send_message(chat_id, "✅ Connected! You will receive order updates here.")
@@ -65,12 +66,14 @@ def telegram_webhook():
 @app.route("/trigger-notification", methods=["POST"])
 def trigger():
     key = request.headers.get("X-Internal-API-Key")
-    if key != INTERNAL_KEY:
+    if not key or key != INTERNAL_KEY:
         return Response("Unauthorized", 403)
 
-    data = request.json
+    data = request.json or {}
+    phone_number = data.get("phone_number") or data.get("phone")
+    service = NotificationService(repo, telegram)
     result = service.notify_order_ready(
-        phone=data.get("phone"),
+        phone_number=phone_number,
         order_id=data.get("order_id"),
         items=data.get("items", []),
     )
