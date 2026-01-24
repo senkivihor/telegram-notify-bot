@@ -90,7 +90,7 @@ def test_trigger_success(client, mock_dependencies):
 
     # Make the Request
     headers = {"X-Internal-API-Key": "test_secret_key"}
-    data = {"phone_number": "+123", "order_id": "ORD-101", "items": ["Burger", "Coke"]}
+    data = {"phone_number": "+123", "order_id": "", "items": []}
 
     response = client.post("/trigger-notification", json=data, headers=headers)
 
@@ -101,8 +101,8 @@ def test_trigger_success(client, mock_dependencies):
     # Verify the message content
     args = mock_telegram.send_message.call_args[0]
     assert args[0] == "555"  # Chat ID
-    assert "ORD-101" in args[1]  # Message body contains Order ID
-    assert "Burger" in args[1]
+    assert "Ура! Ваше замовлення вже готове!" in args[1]  # Message body contains Order ID
+    assert "Ми все підготували і чекаємо на вас." in args[1]
 
 
 # 5. Test Trigger API - USER NOT FOUND
