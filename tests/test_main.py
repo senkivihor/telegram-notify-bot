@@ -189,3 +189,10 @@ def test_trigger_missing_phone_fails(client, mock_dependencies):
     assert response.status_code == 200
     assert "Failed" in response.json["status"]
     mock_telegram.send_message.assert_not_called()
+
+
+def test_health_check(client):
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.data == b"OK"

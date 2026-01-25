@@ -81,6 +81,15 @@ def trigger():
     return {"status": result}, 200
 
 
+# ==========================================
+# ➕ ADD THIS NEW SECTION HERE
+# ==========================================
+@app.route("/health", methods=["GET"])
+def health_check():
+    """Lightweight endpoint for UptimeRobot to keep the bot awake."""
+    return "OK", 200
+
+
 # === RUN SERVER ===
 if __name__ == "__main__":
     # Use the PORT environment variable if available, otherwise 5000
