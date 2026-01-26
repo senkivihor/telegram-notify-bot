@@ -1,5 +1,6 @@
 import logging
 import os
+from urllib.parse import quote_plus
 
 from core.models import LocationInfo
 
@@ -104,11 +105,26 @@ def telegram_webhook():
             # Save User to DB
             repo.save_or_update_user(phone_number=phone_number, name=name, telegram_id=str(chat_id))
 
-            # Confirm
+            # Confirm and hide contact keyboard
             telegram.send_message(
                 chat_id,
                 "✅ Підключено! Ви отримуватимете оновлення замовлень тут.",
                 reply_markup={"remove_keyboard": True},
+            )
+
+            # Offer quick actions via inline buttons (map + call); users can type /menu to re-open reply keyboard
+            map_url = f"https://www.google.com/maps?q={LOCATION_LAT},{LOCATION_LON}"
+            tel_url = f"tel:{LOCATION_CONTACT_PHONE}"
+            summary_line = f"{LOCATION_SCHEDULE_TEXT}\n📞 {LOCATION_CONTACT_PHONE}"
+            schedule_share_url = f"https://t.me/share/url?text={quote_plus(summary_line)}"
+            telegram.send_message_with_buttons(
+                chat_id,
+                f"{summary_line}\n\nКорисні дії:",
+                [
+                    [{"text": "📍 Відкрити на мапі", "url": map_url}],
+                    [{"text": "📞 Подзвонити", "url": tel_url}],
+                    [{"text": "⏰ Графік", "url": schedule_share_url}],
+                ],
             )
 
     return Response("OK", 200)
