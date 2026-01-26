@@ -42,9 +42,13 @@ def test_location_flow_sends_pin_video_and_buttons():
     chat_id, text, buttons = telegram.sent_buttons
     assert chat_id == 123
     assert "⏰" in text and "+380000000000" in text
+    assert "Корисні дії" in text
 
-    # Buttons: first row map URL, second row tel URL
+    # Buttons: first row map URL, second row tel URL, third row schedule share
+    assert len(buttons) == 3
     map_row = buttons[0]
     call_row = buttons[1]
+    schedule_row = buttons[2]
     assert map_row[0]["url"].startswith("https://www.google.com/maps?q=49.1,24.5")
     assert call_row[0]["url"] == "tel:+380000000000"
+    assert "t.me/share/url" in schedule_row[0]["url"]

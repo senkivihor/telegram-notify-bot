@@ -66,11 +66,24 @@ def test_telegram_share_contact(client, mock_dependencies):
     # 1. Ensure user is saved to DB (Normalizes phone to +123...)
     mock_repo.save_or_update_user.assert_called_once_with(phone_number="+1234567890", name="Alice", telegram_id="999")
 
-    # 2. Ensure success message is sent back
-    mock_telegram.send_message.assert_called_once()
+    # 2. Ensure success message removed keyboard
+    assert mock_telegram.send_message.call_count == 1
     args, kwargs = mock_telegram.send_message.call_args
     assert "Підключено" in args[1]
     assert kwargs.get("reply_markup") == {"remove_keyboard": True}
+
+    # 3. Ensure inline quick actions sent (map + call) with schedule and phone in text
+    mock_telegram.send_message_with_buttons.assert_called_once()
+    args, kwargs = mock_telegram.send_message_with_buttons.call_args
+    text_arg = args[1] if len(args) > 1 else kwargs.get("text", "")
+    assert "Корисні дії" in text_arg
+    assert "📞" in text_arg
+    assert "⏰" in text_arg or "Графік" in text_arg
+
+    buttons = kwargs.get("buttons") or args[2]
+    assert any("maps" in btn.get("url", "") for row in buttons for btn in row)
+    assert any(btn.get("url", "").startswith("tel:") for row in buttons for btn in row)
+    assert any("t.me/share/url" in btn.get("url", "") for row in buttons for btn in row)
 
 
 # 3. Test Trigger API - UNAUTHORIZED (No Key)
