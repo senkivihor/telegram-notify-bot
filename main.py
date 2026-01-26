@@ -86,6 +86,11 @@ def telegram_webhook():
                 telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
 
+            # C. Handle Location request
+            if text in {"📍 Де нас знайти?", "Де нас знайти?", "/location"}:
+                location_service.send_location_details(chat_id)
+                return Response("OK", 200)
+
         # B. Handle "Shared Phone Number"
         elif "contact" in msg:
             contact = msg["contact"]
@@ -101,10 +106,6 @@ def telegram_webhook():
 
             # Confirm
             telegram.send_message(chat_id, "✅ Підключено! Ви отримуватимете оновлення замовлень тут.")
-
-        # C. Handle Location request
-        elif "text" in msg and msg["text"].strip() in {"📍 Де нас знайти?", "Де нас знайти?", "/location"}:
-            location_service.send_location_details(chat_id)
 
     return Response("OK", 200)
 
