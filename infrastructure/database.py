@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bot.db")
 
 _is_sqlite_memory = DATABASE_URL.startswith("sqlite:///:memory:")
+_is_postgres = DATABASE_URL.startswith("postgresql")
 
 if _is_sqlite_memory:
     engine = create_engine(
@@ -16,7 +17,18 @@ if _is_sqlite_memory:
         poolclass=StaticPool,
     )
 else:
-    engine = create_engine(DATABASE_URL)
+    # Enable pre_ping so stale pooled connections are recycled after DB restarts/SSL idle timeouts.
+    connect_args = (
+        {
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+        }
+        if _is_postgres
+        else {}
+    )
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=1800, connect_args=connect_args)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
