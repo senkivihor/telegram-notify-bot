@@ -30,10 +30,18 @@ def require_env(name: str) -> str:
     return value
 
 
+def normalize_multiline_env(raw: str) -> str:
+    # Strip wrapping quotes if present and convert escaped newlines to real newlines
+    trimmed = raw.strip()
+    if (trimmed.startswith('"') and trimmed.endswith('"')) or (trimmed.startswith("'") and trimmed.endswith("'")):
+        trimmed = trimmed[1:-1]
+    return trimmed.replace("\\n", "\n")
+
+
 LOCATION_LAT = float(require_env("LOCATION_LAT"))
 LOCATION_LON = float(require_env("LOCATION_LON"))
 LOCATION_VIDEO_URL = require_env("LOCATION_VIDEO_URL")
-LOCATION_SCHEDULE_TEXT = require_env("LOCATION_SCHEDULE_TEXT")
+LOCATION_SCHEDULE_TEXT = normalize_multiline_env(require_env("LOCATION_SCHEDULE_TEXT"))
 LOCATION_CONTACT_PHONE = require_env("LOCATION_CONTACT_PHONE")
 
 # Init
@@ -61,10 +69,27 @@ def telegram_webhook():
         msg = data["message"]
         chat_id = msg["chat"]["id"]
 
-        # A. Handle "Deep Link" or Start
-        # Format: /start ORD-123
-        if "text" in msg and msg["text"].startswith("/start"):
-            telegram.ask_for_phone(chat_id)
+        if "text" in msg:
+            text = msg["text"].strip()
+            # Refresh keyboard/menu for existing users
+            if text in {"/menu", "Menu", "меню", "Меню"}:
+                telegram.ask_for_phone(chat_id)
+                telegram.send_message(
+                    chat_id,
+                    'Меню оновлено: натисніть "📍 Де нас знайти?" щоб отримати локацію та графік.',
+                )
+                return Response("OK", 200)
+
+            # A. Handle "Deep Link" or Start
+            # Format: /start ORD-123
+            if text.startswith("/start"):
+                telegram.ask_for_phone(chat_id)
+                return Response("OK", 200)
+
+            # C. Handle Location request
+            if text in {"📍 Де нас знайти?", "Де нас знайти?", "/location"}:
+                location_service.send_location_details(chat_id)
+                return Response("OK", 200)
 
         # B. Handle "Shared Phone Number"
         elif "contact" in msg:
@@ -82,10 +107,6 @@ def telegram_webhook():
             # Confirm
             telegram.send_message(chat_id, "✅ Підключено! Ви отримуватимете оновлення замовлень тут.")
 
-        # C. Handle Location request
-        elif "text" in msg and msg["text"].strip() in {"📍 Де нас знайти?", "Де нас знайти?", "/location"}:
-            location_service.send_location_details(chat_id)
-
     return Response("OK", 200)
 
 
@@ -100,7 +121,12 @@ def trigger():
 
     data = request.json or {}
     phone_number = data.get("phone_number") or data.get("phone")
-    service = NotificationService(repo, telegram)
+    service = NotificationService(
+        repo,
+        telegram,
+        schedule_text=LOCATION_SCHEDULE_TEXT,
+        contact_phone=LOCATION_CONTACT_PHONE,
+    )
     result = service.notify_order_ready(
         phone_number=phone_number,
         order_id=data.get("order_id"),

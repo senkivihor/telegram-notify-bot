@@ -3,9 +3,13 @@ from infrastructure.telegram_adapter import TelegramAdapter
 
 
 class NotificationService:
-    def __init__(self, repo: SqlAlchemyUserRepository, telegram: TelegramAdapter):
+    def __init__(
+        self, repo: SqlAlchemyUserRepository, telegram: TelegramAdapter, schedule_text: str, contact_phone: str
+    ):
         self.repo = repo
         self.telegram = telegram
+        self.schedule_text = schedule_text
+        self.contact_phone = contact_phone
 
     def notify_order_ready(self, phone_number: str, order_id: str, items: list) -> str:
         # 1. Find user by phone
@@ -21,12 +25,8 @@ class NotificationService:
             "🏃 **Забігайте, коли зручно!**\n\n"
             "💡 *Порада:* Плануєте візит на самий ранок або під закриття? "
             "Краще наберіть нас заздалегідь, щоб ми точно не розминулися! 😉\n\n"
-            "📞 **073 436 5788**\n\n"
-            "⏰ **Наш графік:**\n"
-            "• Пн, Пт: 10:00 – 19:00\n"
-            "• Вт - Чт: 10:00 – 17:00\n"
-            "• Сб: 11:00 – 14:00 (за попереднім дзвінком)\n"
-            "• Нд: Вихідний"
+            f"📞 **{self.contact_phone}**\n\n"
+            f"{self.schedule_text}"
         )
         # 3. Send
         if self.telegram.send_message(user.telegram_id, message):
