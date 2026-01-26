@@ -21,6 +21,32 @@ class TelegramAdapter:
             self.logger.error(f"❌ Failed to send Telegram message: {e}")
             return False
 
+    def send_location(self, chat_id: int, latitude: float, longitude: float) -> bool:
+        """Sends a geo location pin."""
+        try:
+            url = f"{self.api_url}/sendLocation"
+            payload = {"chat_id": chat_id, "latitude": latitude, "longitude": longitude}
+            requests.post(url, json=payload, timeout=5)
+            self.logger.info(f"✅ Sent location to {chat_id}")
+            return True
+        except Exception as e:
+            self.logger.error(f"❌ Failed to send location: {e}")
+            return False
+
+    def send_video(self, chat_id: int, video_url: str, caption: str | None = None) -> bool:
+        """Sends a video by URL (can also be used with MP4 clip of entrance)."""
+        try:
+            url = f"{self.api_url}/sendVideo"
+            payload = {"chat_id": chat_id, "video": video_url}
+            if caption:
+                payload["caption"] = caption
+            requests.post(url, json=payload, timeout=5)
+            self.logger.info(f"✅ Sent video to {chat_id}")
+            return True
+        except Exception as e:
+            self.logger.error(f"❌ Failed to send video: {e}")
+            return False
+
     def ask_for_phone(self, chat_id: str):
         """Sends a button asking the user to share their phone number."""
         url = f"{self.api_url}/sendMessage"
@@ -31,7 +57,12 @@ class TelegramAdapter:
                         "text": "📱 Поділитися номером для замовлення",
                         "request_contact": True,
                     }
-                ]
+                ],
+                [
+                    {
+                        "text": "📍 Де нас знайти?",
+                    }
+                ],
             ],
             "one_time_keyboard": True,
             "resize_keyboard": True,

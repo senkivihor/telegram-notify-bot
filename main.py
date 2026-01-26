@@ -1,6 +1,8 @@
 import logging
 import os
 
+from core.models import LocationInfo
+
 from flask import Flask, Response, request
 
 # Imports
@@ -8,6 +10,7 @@ from infrastructure.database import init_db
 from infrastructure.repositories import SqlAlchemyUserRepository
 from infrastructure.telegram_adapter import TelegramAdapter
 
+from services.location import LocationService
 from services.notifier import NotificationService
 
 # Setup
@@ -19,10 +22,32 @@ app = Flask(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 INTERNAL_KEY = os.getenv("INTERNAL_API_KEY")
 
+
+def require_env(name: str) -> str:
+    value = os.getenv(name)
+    if value is None or value == "":
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+LOCATION_LAT = float(require_env("LOCATION_LAT"))
+LOCATION_LON = float(require_env("LOCATION_LON"))
+LOCATION_VIDEO_URL = require_env("LOCATION_VIDEO_URL")
+LOCATION_SCHEDULE_TEXT = require_env("LOCATION_SCHEDULE_TEXT")
+LOCATION_CONTACT_PHONE = require_env("LOCATION_CONTACT_PHONE")
+
 # Init
 init_db()
 repo = SqlAlchemyUserRepository()
 telegram = TelegramAdapter(TELEGRAM_TOKEN)
+location_info = LocationInfo(
+    latitude=LOCATION_LAT,
+    longitude=LOCATION_LON,
+    video_url=LOCATION_VIDEO_URL,
+    schedule_text=LOCATION_SCHEDULE_TEXT,
+    contact_phone=LOCATION_CONTACT_PHONE,
+)
+location_service = LocationService(telegram, location_info)
 
 
 # ==========================
@@ -56,6 +81,10 @@ def telegram_webhook():
 
             # Confirm
             telegram.send_message(chat_id, "✅ Підключено! Ви отримуватимете оновлення замовлень тут.")
+
+        # C. Handle Location request
+        elif "text" in msg and msg["text"].strip() in {"📍 Де нас знайти?", "Де нас знайти?", "/location"}:
+            location_service.send_location_details(chat_id)
 
     return Response("OK", 200)
 

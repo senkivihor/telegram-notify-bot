@@ -45,6 +45,13 @@ TELEGRAM_BOT_TOKEN=123456789:ABCdef-GHIjkl...
 
 # 2. Generate a strong random string (e.g., using 'openssl rand -hex 32')
 INTERNAL_API_KEY=my_secure_secret_key_change_me
+
+# 3. Location & schedule (required)
+LOCATION_LAT=00.000000
+LOCATION_LON=00.000000
+LOCATION_VIDEO_URL=https://example.com/entrance.mp4
+LOCATION_SCHEDULE_TEXT="⏰ **Наш графік:**\n• Пн-Пт: 10:00 – 19:00\n• Сб: 11:00 – 14:00 (за дзвінком)\n• Нд: Вихідний"
+LOCATION_CONTACT_PHONE=+380000000000
 ```
 
 ### 3. Run with Docker
@@ -72,7 +79,12 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 3. Bot prompts to "Share Phone Number".
 4. Phone number is mapped to the user's Chat ID and stored.
 
-### 2. Triggering Notifications (API)
+### 2. Location & Schedule
+- Button: "📍 Де нас знайти?" appears on the reply keyboard during onboarding.
+- Behavior: sends a map pin, entrance video (or compatible clip), and operating hours.
+- Env overrides (optional): `LOCATION_LAT`, `LOCATION_LON`, `LOCATION_VIDEO_URL`, `LOCATION_SCHEDULE_TEXT`.
+
+### 3. Triggering Notifications (API)
 - Endpoint: POST /trigger-notification
 - Headers:
   - Content-Type: application/json
@@ -130,3 +142,8 @@ poetry run pytest
 - Database: Neon/PostgreSQL with `sslmode=require` in `DATABASE_URL` (default).
 - Connection pool is configured with `pool_pre_ping` + `pool_recycle` to refresh stale sockets and Postgres keepalives; no extra config needed for Render + Neon.
 - If you still observe occasional disconnects, shorten `pool_recycle` (e.g., 300–600s) and keep pool sizes modest to stay within Neon limits.
+
+## CI/CD
+- GitHub Actions runs flake8 and pytest on pushes and pull requests.
+- On push to `main`, after checks pass, a deploy is triggered via Render deploy hook.
+- Required secret: `RENDER_DEPLOY_HOOK` set in GitHub repo Actions secrets (full deploy hook URL from Render service settings).

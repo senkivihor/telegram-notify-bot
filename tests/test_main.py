@@ -20,16 +20,17 @@ def client():
 @pytest.fixture
 def mock_dependencies():
     """
-    Mocks the Database Repo and Telegram Adapter so we don't
+    Mocks the Database Repo, Location Service, and Telegram Adapter so we don't
     actually touch the DB or send real messages during tests.
     """
     with (
         patch("main.repo") as mock_repo,
         patch("main.telegram") as mock_telegram,
+        patch("main.location_service") as mock_location_service,
         patch("main.INTERNAL_KEY", "test_secret_key"),
     ):
 
-        yield mock_repo, mock_telegram
+        yield mock_repo, mock_telegram, mock_location_service
 
 
 # --- TEST CASES ---
@@ -37,7 +38,7 @@ def mock_dependencies():
 
 # 1. Test /start Command (User clicks Start)
 def test_telegram_start_command(client, mock_dependencies):
-    mock_repo, mock_telegram = mock_dependencies
+    mock_repo, mock_telegram, _ = mock_dependencies
 
     # Simulate Telegram sending a /start message
     payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
@@ -52,7 +53,7 @@ def test_telegram_start_command(client, mock_dependencies):
 
 # 2. Test Sharing Phone Number (User clicks 'Share Phone')
 def test_telegram_share_contact(client, mock_dependencies):
-    mock_repo, mock_telegram = mock_dependencies
+    mock_repo, mock_telegram, _ = mock_dependencies
 
     # Simulate user sharing their contact
     payload = {"message": {"chat": {"id": 999}, "contact": {"phone_number": "1234567890", "first_name": "Alice"}}}
@@ -79,7 +80,7 @@ def test_trigger_unauthorized(client):
 
 # 4. Test Trigger API - SUCCESS (Happy Path)
 def test_trigger_success(client, mock_dependencies):
-    mock_repo, mock_telegram = mock_dependencies
+    mock_repo, mock_telegram, _ = mock_dependencies
 
     # Setup Mock: DB finds the user
     mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555")
@@ -107,7 +108,7 @@ def test_trigger_success(client, mock_dependencies):
 
 # 5. Test Trigger API - USER NOT FOUND
 def test_trigger_user_not_found(client, mock_dependencies):
-    mock_repo, mock_telegram = mock_dependencies
+    mock_repo, mock_telegram, _ = mock_dependencies
 
     # Setup Mock: DB returns None (User not in system)
     mock_repo.get_user_by_phone.return_value = None
@@ -125,7 +126,7 @@ def test_trigger_user_not_found(client, mock_dependencies):
 
 # 6. Test Trigger API - TELEGRAM API FAILURE
 def test_trigger_telegram_api_failure(client, mock_dependencies):
-    mock_repo, mock_telegram = mock_dependencies
+    mock_repo, mock_telegram, _ = mock_dependencies
 
     # Setup Mock: DB finds the user
     mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555")
@@ -146,7 +147,7 @@ def test_trigger_telegram_api_failure(client, mock_dependencies):
 
 
 def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
-    mock_repo, mock_telegram = mock_dependencies
+    mock_repo, mock_telegram, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 111}, "text": "hello"}}
 
@@ -159,7 +160,7 @@ def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
 
 
 def test_telegram_start_with_deep_link(client, mock_dependencies):
-    mock_repo, mock_telegram = mock_dependencies
+    mock_repo, mock_telegram, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 4242}, "text": "/start ORD-123"}}
 
@@ -178,7 +179,7 @@ def test_trigger_wrong_key(client):
 
 
 def test_trigger_missing_phone_fails(client, mock_dependencies):
-    mock_repo, mock_telegram = mock_dependencies
+    mock_repo, mock_telegram, _ = mock_dependencies
     mock_repo.get_user_by_phone.return_value = None
 
     headers = {"X-Internal-API-Key": "test_secret_key"}
@@ -196,3 +197,15 @@ def test_health_check(client):
 
     assert response.status_code == 200
     assert response.data == b"OK"
+
+
+def test_location_button_triggers_location_flow(client, mock_dependencies):
+    mock_repo, mock_telegram, mock_location_service = mock_dependencies
+
+    payload = {"message": {"chat": {"id": 321}, "text": "📍 Де нас знайти?"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_location_service.send_location_details.assert_called_once_with(321)
+    mock_repo.save_or_update_user.assert_not_called()
