@@ -209,3 +209,17 @@ def test_location_button_triggers_location_flow(client, mock_dependencies):
     assert response.status_code == 200
     mock_location_service.send_location_details.assert_called_once_with(321)
     mock_repo.save_or_update_user.assert_not_called()
+
+
+def test_menu_resends_keyboard(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    payload = {"message": {"chat": {"id": 777}, "text": "/menu"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_telegram.ask_for_phone.assert_called_once_with(777)
+    mock_telegram.send_message.assert_called_once()
+    assert "Меню оновлено" in mock_telegram.send_message.call_args[0][1]
+    mock_repo.save_or_update_user.assert_not_called()

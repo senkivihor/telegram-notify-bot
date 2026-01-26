@@ -61,10 +61,22 @@ def telegram_webhook():
         msg = data["message"]
         chat_id = msg["chat"]["id"]
 
-        # A. Handle "Deep Link" or Start
-        # Format: /start ORD-123
-        if "text" in msg and msg["text"].startswith("/start"):
-            telegram.ask_for_phone(chat_id)
+        if "text" in msg:
+            text = msg["text"].strip()
+            # Refresh keyboard/menu for existing users
+            if text in {"/menu", "Menu", "меню", "Меню"}:
+                telegram.ask_for_phone(chat_id)
+                telegram.send_message(
+                    chat_id,
+                    'Меню оновлено: натисніть "📍 Де нас знайти?" щоб отримати локацію та графік.',
+                )
+                return Response("OK", 200)
+
+            # A. Handle "Deep Link" or Start
+            # Format: /start ORD-123
+            if text.startswith("/start"):
+                telegram.ask_for_phone(chat_id)
+                return Response("OK", 200)
 
         # B. Handle "Shared Phone Number"
         elif "contact" in msg:
