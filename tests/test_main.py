@@ -68,7 +68,9 @@ def test_telegram_share_contact(client, mock_dependencies):
 
     # 2. Ensure success message is sent back
     mock_telegram.send_message.assert_called_once()
-    assert "Підключено" in mock_telegram.send_message.call_args[0][1]
+    args, kwargs = mock_telegram.send_message.call_args
+    assert "Підключено" in args[1]
+    assert kwargs.get("reply_markup") == {"remove_keyboard": True}
 
 
 # 3. Test Trigger API - UNAUTHORIZED (No Key)
