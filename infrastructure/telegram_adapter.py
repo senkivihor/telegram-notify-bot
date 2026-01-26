@@ -97,3 +97,24 @@ class TelegramAdapter:
             "reply_markup": keyboard,
         }
         requests.post(url, json=payload)
+
+    def send_location_menu(self, chat_id: str):
+        """Re-opens a lightweight keyboard with the location CTA after contact sharing."""
+        url = f"{self.api_url}/sendMessage"
+        keyboard = {
+            "keyboard": [
+                [
+                    {
+                        "text": "📍 Де нас знайти?",
+                    }
+                ],
+            ],
+            "one_time_keyboard": False,
+            "resize_keyboard": True,
+        }
+        payload = {
+            "chat_id": chat_id,
+            "text": "Мапа доступна за кнопкою нижче.",
+            "reply_markup": keyboard,
+        }
+        requests.post(url, json=payload)

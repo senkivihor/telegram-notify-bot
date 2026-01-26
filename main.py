@@ -127,6 +127,9 @@ def telegram_webhook():
                 ],
             )
 
+            # Re-open reply keyboard so location CTA stays visible
+            telegram.send_location_menu(chat_id)
+
     return Response("OK", 200)
 
 
