@@ -25,4 +25,12 @@ class LocationService:
 
         # Send schedule text + phone
         contact_line = f"\n\n📞 {self.location_info.contact_phone}" if self.location_info.contact_phone else ""
-        self.telegram.send_message(chat_id, f"{self.location_info.schedule_text}{contact_line}")
+        schedule_text = f"{self.location_info.schedule_text}{contact_line}"
+        map_url = f"https://www.google.com/maps?q={self.location_info.latitude},{self.location_info.longitude}"
+        tel_url = f"tel:{self.location_info.contact_phone}" if self.location_info.contact_phone else None
+
+        buttons = [[{"text": "📍 Відкрити на мапі", "url": map_url}]]
+        if tel_url:
+            buttons.append([{"text": "📞 Подзвонити", "url": tel_url}])
+
+        self.telegram.send_message_with_buttons(chat_id, schedule_text, buttons)

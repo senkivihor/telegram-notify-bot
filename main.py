@@ -105,7 +105,11 @@ def telegram_webhook():
             repo.save_or_update_user(phone_number=phone_number, name=name, telegram_id=str(chat_id))
 
             # Confirm
-            telegram.send_message(chat_id, "✅ Підключено! Ви отримуватимете оновлення замовлень тут.")
+            telegram.send_message(
+                chat_id,
+                "✅ Підключено! Ви отримуватимете оновлення замовлень тут.",
+                reply_markup={"remove_keyboard": True},
+            )
 
     return Response("OK", 200)
 

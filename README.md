@@ -81,7 +81,7 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 
 ### 2. Location & Schedule
 - Button: "📍 Де нас знайти?" appears on the reply keyboard during onboarding (send `/menu` to refresh the keyboard if you don't see it; bot will confirm the menu was updated).
-- Behavior: sends a map pin, entrance video (or compatible clip), and operating hours.
+- Behavior: sends a map pin, entrance video (or compatible clip), operating hours, plus inline buttons to open the map and call.
 - Env overrides (optional): `LOCATION_LAT`, `LOCATION_LON`, `LOCATION_VIDEO_URL`, `LOCATION_SCHEDULE_TEXT`.
 
 ### 3. Triggering Notifications (API)
