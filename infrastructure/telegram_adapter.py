@@ -9,11 +9,13 @@ class TelegramAdapter:
         self.api_url = f"https://api.telegram.org/bot{bot_token}"
         self.logger = logging.getLogger("TelegramAdapter")
 
-    def send_message(self, chat_id: str, text: str):
-        """Sends a standard text message."""
+    def send_message(self, chat_id: str, text: str, reply_markup: dict | None = None):
+        """Sends a standard text message. Optionally attach reply_markup (e.g., remove keyboard)."""
         try:
             url = f"{self.api_url}/sendMessage"
             payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+            if reply_markup:
+                payload["reply_markup"] = reply_markup
             requests.post(url, json=payload, timeout=5)
             self.logger.info(f"✅ Sent message to {chat_id}")
             return True
