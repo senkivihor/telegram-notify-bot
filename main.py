@@ -30,10 +30,18 @@ def require_env(name: str) -> str:
     return value
 
 
+def normalize_multiline_env(raw: str) -> str:
+    # Strip wrapping quotes if present and convert escaped newlines to real newlines
+    trimmed = raw.strip()
+    if (trimmed.startswith('"') and trimmed.endswith('"')) or (trimmed.startswith("'") and trimmed.endswith("'")):
+        trimmed = trimmed[1:-1]
+    return trimmed.replace("\\n", "\n")
+
+
 LOCATION_LAT = float(require_env("LOCATION_LAT"))
 LOCATION_LON = float(require_env("LOCATION_LON"))
 LOCATION_VIDEO_URL = require_env("LOCATION_VIDEO_URL")
-LOCATION_SCHEDULE_TEXT = require_env("LOCATION_SCHEDULE_TEXT")
+LOCATION_SCHEDULE_TEXT = normalize_multiline_env(require_env("LOCATION_SCHEDULE_TEXT"))
 LOCATION_CONTACT_PHONE = require_env("LOCATION_CONTACT_PHONE")
 
 # Init
@@ -112,7 +120,12 @@ def trigger():
 
     data = request.json or {}
     phone_number = data.get("phone_number") or data.get("phone")
-    service = NotificationService(repo, telegram)
+    service = NotificationService(
+        repo,
+        telegram,
+        schedule_text=LOCATION_SCHEDULE_TEXT,
+        contact_phone=LOCATION_CONTACT_PHONE,
+    )
     result = service.notify_order_ready(
         phone_number=phone_number,
         order_id=data.get("order_id"),
