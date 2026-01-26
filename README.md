@@ -124,3 +124,9 @@ poetry run pytest
 - Never commit .env to version control.
 - Rotate your INTERNAL_API_KEY periodically.
 - Run behind a reverse proxy (Nginx or Traefik) with SSL (HTTPS) in production; Telegram webhooks require HTTPS.
+
+## Hosting notes
+- Deployment: currently hosted on Render (Docker); Render sets the `PORT` env var automatically, which the app already honors.
+- Database: Neon/PostgreSQL with `sslmode=require` in `DATABASE_URL` (default).
+- Connection pool is configured with `pool_pre_ping` + `pool_recycle` to refresh stale sockets and Postgres keepalives; no extra config needed for Render + Neon.
+- If you still observe occasional disconnects, shorten `pool_recycle` (e.g., 300–600s) and keep pool sizes modest to stay within Neon limits.
