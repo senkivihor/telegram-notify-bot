@@ -47,3 +47,18 @@ jobs:
         env:
           DATABASE_URL: "sqlite:///:memory:"
         run: poetry run pytest
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [flake8, tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "RENDER_DEPLOY_HOOK secret is not set" >&2
+            exit 1
+          fi
+          curl -X POST -fsS "$RENDER_DEPLOY_HOOK"
