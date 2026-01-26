@@ -33,20 +33,6 @@ class TelegramAdapter:
             self.logger.error(f"❌ Failed to send location: {e}")
             return False
 
-    def send_photo(self, chat_id: int, photo_url: str, caption: str | None = None) -> bool:
-        """Sends a photo by URL."""
-        try:
-            url = f"{self.api_url}/sendPhoto"
-            payload = {"chat_id": chat_id, "photo": photo_url}
-            if caption:
-                payload["caption"] = caption
-            requests.post(url, json=payload, timeout=5)
-            self.logger.info(f"✅ Sent photo to {chat_id}")
-            return True
-        except Exception as e:
-            self.logger.error(f"❌ Failed to send photo: {e}")
-            return False
-
     def send_video(self, chat_id: int, video_url: str, caption: str | None = None) -> bool:
         """Sends a video by URL (can also be used with MP4 clip of entrance)."""
         try:
