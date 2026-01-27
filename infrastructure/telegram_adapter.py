@@ -116,7 +116,7 @@ class TelegramAdapter:
         }
         payload = {
             "chat_id": chat_id,
-            "text": " ",
+            "text": 'Натисніть "📍 Локація та контакти" щоб отримати адресу, графік та контактний телефон.',
             "reply_markup": keyboard,
         }
         requests.post(url, json=payload)

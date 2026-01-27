@@ -114,11 +114,11 @@ def telegram_webhook():
                 reply_markup={"remove_keyboard": True},
             )
 
-            # Prompt user to use the location button for full details
-            telegram.send_message(
-                chat_id,
-                'Натисніть "📍 Локація та контакти" щоб отримати адресу, графік та контактний телефон.',
-            )
+            # # Prompt user to use the location button for full details
+            # telegram.send_message(
+            #     chat_id,
+            #     'Натисніть "📍 Локація та контакти" щоб отримати адресу, графік та контактний телефон.',
+            # )
 
             # Re-open reply keyboard so location CTA stays visible
             telegram.send_location_menu(chat_id)
