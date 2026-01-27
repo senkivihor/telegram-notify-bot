@@ -72,7 +72,6 @@ def test_telegram_share_contact(client, mock_dependencies):
     assert first_args[0] == 999
     assert "Підключено" in first_args[1]
     assert first_kwargs.get("reply_markup") == {"remove_keyboard": True}
-    mock_telegram.send_message_with_buttons.assert_not_called()
 
     # 4. Ensure reply keyboard with location was re-opened
     mock_telegram.send_location_menu.assert_called_once_with(999)

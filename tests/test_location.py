@@ -17,10 +17,6 @@ class DummyTelegram:
         self.sent_video = (chat_id, video_url, caption)
         return True
 
-    def send_message_with_buttons(self, chat_id, text, buttons):
-        self.sent_message = (chat_id, text, buttons)
-        return True
-
     def send_message(self, chat_id, text, reply_markup=None):
         self.sent_message = (chat_id, text, reply_markup)
         return True
