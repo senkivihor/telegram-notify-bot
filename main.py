@@ -71,18 +71,6 @@ def telegram_webhook():
 
         if "text" in msg:
             text = msg["text"].strip()
-            # Refresh keyboard/menu for existing users
-            if text in {"/menu", "Menu", "меню", "Меню"}:
-                telegram.ask_for_phone(chat_id)
-                telegram.send_message(
-                    chat_id,
-                    (
-                        'Меню оновлено: натисніть "📍 Локація та контакти" '
-                        "щоб отримати адресу, графік та контактний телефон."
-                    ),
-                )
-                return Response("OK", 200)
-
             # A. Handle "Deep Link" or Start
             # Format: /start ORD-123
             if text.startswith("/start"):

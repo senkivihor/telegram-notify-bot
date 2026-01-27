@@ -72,7 +72,6 @@ def test_telegram_share_contact(client, mock_dependencies):
     assert first_args[0] == 999
     assert "Підключено" in first_args[1]
     assert first_kwargs.get("reply_markup") == {"remove_keyboard": True}
-    mock_telegram.send_message_with_buttons.assert_not_called()
 
     # 4. Ensure reply keyboard with location was re-opened
     mock_telegram.send_location_menu.assert_called_once_with(999)
@@ -226,7 +225,6 @@ def test_menu_resends_keyboard(client, mock_dependencies):
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
-    mock_telegram.ask_for_phone.assert_called_once_with(777)
-    mock_telegram.send_message.assert_called_once()
-    assert "Меню оновлено" in mock_telegram.send_message.call_args[0][1]
+    mock_telegram.ask_for_phone.assert_not_called()
+    mock_telegram.send_message.assert_not_called()
     mock_repo.save_or_update_user.assert_not_called()

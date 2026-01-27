@@ -23,30 +23,6 @@ class TelegramAdapter:
             self.logger.error(f"❌ Failed to send Telegram message: {e}")
             return False
 
-    def send_message_with_buttons(self, chat_id: int, text: str, buttons: list[dict]):
-        """Sends a message with an inline keyboard.
-
-        buttons: list of rows, each row is list of button dicts. Example:
-        [[{"text": "Open map", "url": "https://maps.google.com"}]]
-        """
-        try:
-            url = f"{self.api_url}/sendMessage"
-            keyboard = {"inline_keyboard": buttons}
-            payload = {
-                "chat_id": chat_id,
-                "text": text,
-                "reply_markup": keyboard,
-            }
-            resp = requests.post(url, json=payload, timeout=5)
-            if not resp.ok:
-                self.logger.error("❌ Failed to send message with buttons: %s", resp.text)
-                return False
-            self.logger.info(f"✅ Sent message with buttons to {chat_id}")
-            return True
-        except Exception as e:
-            self.logger.error(f"❌ Failed to send message with buttons: {e}")
-            return False
-
     def send_location(self, chat_id: int, latitude: float, longitude: float) -> bool:
         """Sends a geo location pin."""
         try:
