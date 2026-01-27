@@ -67,15 +67,12 @@ def test_telegram_share_contact(client, mock_dependencies):
     mock_repo.save_or_update_user.assert_called_once_with(phone_number="+1234567890", name="Alice", telegram_id="999")
 
     # 2. Ensure success message removed keyboard, then prompt to use the location button
-    # assert mock_telegram.send_message.call_count == 1
-    # first_args, first_kwargs = mock_telegram.send_message.call_args_list[0]
-    # assert "Підключено" in first_args[1]
-    # assert first_kwargs.get("reply_markup") == {"remove_keyboard": True}
-
-    # prompt_args, prompt_kwargs = mock_telegram.send_message.call_args_list[1]
-    # assert "Локація та контакти" in prompt_args[1]
-    # mock_telegram.send_message_with_buttons.assert_not_called()
-    # TODO: Fix the test!
+    assert mock_telegram.send_message.call_count == 1
+    first_args, first_kwargs = mock_telegram.send_message.call_args
+    assert first_args[0] == 999
+    assert "Підключено" in first_args[1]
+    assert first_kwargs.get("reply_markup") == {"remove_keyboard": True}
+    mock_telegram.send_message_with_buttons.assert_not_called()
 
     # 4. Ensure reply keyboard with location was re-opened
     mock_telegram.send_location_menu.assert_called_once_with(999)
