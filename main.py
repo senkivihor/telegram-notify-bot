@@ -114,7 +114,7 @@ def telegram_webhook():
 
             # Offer quick actions via inline buttons (map + call); users can type /menu to re-open reply keyboard
             map_url = f"https://www.google.com/maps?q={LOCATION_LAT},{LOCATION_LON}"
-            tel_url = f"tel:{LOCATION_CONTACT_PHONE}"
+            tel_share_url = f"https://t.me/share/url?url={quote_plus(f'tel:{LOCATION_CONTACT_PHONE}')}"
             summary_line = f"{LOCATION_SCHEDULE_TEXT}\n📞 {LOCATION_CONTACT_PHONE}"
             schedule_share_url = f"https://t.me/share/url?text={quote_plus(summary_line)}"
             telegram.send_message_with_buttons(
@@ -122,7 +122,7 @@ def telegram_webhook():
                 f"{summary_line}\n\nКорисні дії:",
                 [
                     [{"text": "📍 Відкрити на мапі", "url": map_url}],
-                    [{"text": "📞 Подзвонити", "url": tel_url}],
+                    [{"text": "📞 Подзвонити", "url": tel_share_url}],
                     [{"text": "⏰ Графік", "url": schedule_share_url}],
                 ],
             )
