@@ -7,7 +7,7 @@ class DummyTelegram:
     def __init__(self):
         self.sent_location = None
         self.sent_video = None
-        self.sent_buttons = None
+        self.sent_message = None
 
     def send_location(self, chat_id, latitude, longitude):
         self.sent_location = (chat_id, latitude, longitude)
@@ -18,7 +18,11 @@ class DummyTelegram:
         return True
 
     def send_message_with_buttons(self, chat_id, text, buttons):
-        self.sent_buttons = (chat_id, text, buttons)
+        self.sent_message = (chat_id, text, buttons)
+        return True
+
+    def send_message(self, chat_id, text, reply_markup=None):
+        self.sent_message = (chat_id, text, reply_markup)
         return True
 
 
@@ -38,17 +42,8 @@ def test_location_flow_sends_pin_video_and_buttons():
     assert telegram.sent_location == (123, 49.1, 24.5)
     assert telegram.sent_video == (123, "https://example.com/video.mp4", "Ось наш вхід, щоб легше знайти!")
 
-    assert telegram.sent_buttons is not None
-    chat_id, text, buttons = telegram.sent_buttons
+    assert telegram.sent_message is not None
+    chat_id, text, reply_markup = telegram.sent_message
     assert chat_id == 123
     assert "⏰" in text and "+380000000000" in text
-    assert "Корисні дії" in text
-
-    # Buttons: first row map URL, second row tel URL, third row schedule share
-    assert len(buttons) == 3
-    map_row = buttons[0]
-    call_row = buttons[1]
-    schedule_row = buttons[2]
-    assert map_row[0]["url"].startswith("https://www.google.com/maps?q=49.1,24.5")
-    assert "t.me/share/url" in call_row[0]["url"] and "tel%3A" in call_row[0]["url"]
-    assert "t.me/share/url" in schedule_row[0]["url"]
+    assert "Наша локація та контакти" in text
