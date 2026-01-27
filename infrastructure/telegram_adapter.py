@@ -35,7 +35,6 @@ class TelegramAdapter:
             payload = {
                 "chat_id": chat_id,
                 "text": text,
-                "parse_mode": "Markdown",
                 "reply_markup": keyboard,
             }
             requests.post(url, json=payload, timeout=5)
