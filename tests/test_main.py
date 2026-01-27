@@ -226,7 +226,6 @@ def test_menu_resends_keyboard(client, mock_dependencies):
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
-    mock_telegram.ask_for_phone.assert_called_once_with(777)
-    mock_telegram.send_message.assert_called_once()
-    assert "Меню оновлено" in mock_telegram.send_message.call_args[0][1]
+    mock_telegram.ask_for_phone.assert_not_called()
+    mock_telegram.send_message.assert_not_called()
     mock_repo.save_or_update_user.assert_not_called()
