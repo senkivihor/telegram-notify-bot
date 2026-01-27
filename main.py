@@ -1,6 +1,5 @@
 import logging
 import os
-from urllib.parse import quote_plus
 
 from core.models import LocationInfo
 
@@ -77,7 +76,7 @@ def telegram_webhook():
                 telegram.ask_for_phone(chat_id)
                 telegram.send_message(
                     chat_id,
-                    'Меню оновлено: натисніть "📍 Де нас знайти?" щоб отримати локацію та графік.',
+                    'Меню оновлено: натисніть "📍 Локація та контакти" щоб отримати адресу, графік та контактний телефон.',
                 )
                 return Response("OK", 200)
 
@@ -88,7 +87,7 @@ def telegram_webhook():
                 return Response("OK", 200)
 
             # C. Handle Location request
-            if text in {"📍 Де нас знайти?", "Де нас знайти?", "/location"}:
+            if text in {"📍 Локація та контакти", "Локація та контакти", "/location"}:
                 location_service.send_location_details(chat_id)
                 return Response("OK", 200)
 
@@ -112,19 +111,10 @@ def telegram_webhook():
                 reply_markup={"remove_keyboard": True},
             )
 
-            # Offer quick actions via inline buttons (map + call); users can type /menu to re-open reply keyboard
-            map_url = f"https://www.google.com/maps?q={LOCATION_LAT},{LOCATION_LON}"
-            tel_share_url = f"https://t.me/share/url?url={quote_plus(f'tel:{LOCATION_CONTACT_PHONE}')}"
-            summary_line = f"{LOCATION_SCHEDULE_TEXT}\n📞 {LOCATION_CONTACT_PHONE}"
-            schedule_share_url = f"https://t.me/share/url?text={quote_plus(summary_line)}"
-            telegram.send_message_with_buttons(
+            # Prompt user to use the location button for full details
+            telegram.send_message(
                 chat_id,
-                f"{summary_line}\n\nКорисні дії:",
-                [
-                    [{"text": "📍 Відкрити на мапі", "url": map_url}],
-                    [{"text": "📞 Подзвонити", "url": tel_share_url}],
-                    [{"text": "⏰ Графік", "url": schedule_share_url}],
-                ],
+                'Натисніть "📍 Локація та контакти" щоб отримати адресу, графік та контактний телефон.',
             )
 
             # Re-open reply keyboard so location CTA stays visible
