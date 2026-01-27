@@ -114,7 +114,7 @@ class TelegramAdapter:
         }
         payload = {
             "chat_id": chat_id,
-            "text": "Мапа доступна за кнопкою нижче.",
+            "text": "Виберіть потрібну опцію нижче.",
             "reply_markup": keyboard,
         }
         requests.post(url, json=payload)
