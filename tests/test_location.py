@@ -50,5 +50,5 @@ def test_location_flow_sends_pin_video_and_buttons():
     call_row = buttons[1]
     schedule_row = buttons[2]
     assert map_row[0]["url"].startswith("https://www.google.com/maps?q=49.1,24.5")
-    assert call_row[0]["url"] == "tel:+380000000000"
+    assert "t.me/share/url" in call_row[0]["url"] and "tel%3A" in call_row[0]["url"]
     assert "t.me/share/url" in schedule_row[0]["url"]

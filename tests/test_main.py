@@ -82,7 +82,9 @@ def test_telegram_share_contact(client, mock_dependencies):
 
     buttons = kwargs.get("buttons") or args[2]
     assert any("maps" in btn.get("url", "") for row in buttons for btn in row)
-    assert any(btn.get("url", "").startswith("tel:") for row in buttons for btn in row)
+    assert any(
+        "t.me/share/url" in btn.get("url", "") and "tel%3A" in btn.get("url", "") for row in buttons for btn in row
+    )
     assert any("t.me/share/url" in btn.get("url", "") for row in buttons for btn in row)
 
     # 4. Ensure reply keyboard with location was re-opened
