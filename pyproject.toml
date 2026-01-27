@@ -24,11 +24,11 @@ extend-ignore = ["D203"]
 
 # Specify per-file ignores
 per-file-ignores = [
-    "core/*.py:D100,D101,D102,D103,D104,D106,D107,D205,E501",
+    "core/*.py:D100,D101,D102,D103,D104,D106,D107,D205",
     "infrastructure/*.py:D100,D101,D102,D103,D104,D107,D205,F541",
-    "services/*.py:D100,D101,D102,D103,D104,D106,D107,D205,E501",
-    "tests/*.py:D100,D101,D102,D103,D104,D106,D107,D205,E501",
-    "main.py:D100,D101,D102,D103,D104,D106,D107,D205,E501",
+    "services/*.py:D100,D101,D102,D103,D104,D106,D107,D205",
+    "tests/*.py:D100,D101,D102,D103,D104,D106,D107,D205",
+    "main.py:D100,D101,D102,D103,D104,D106,D107,D205",
 ]
 
 [tool.black]
