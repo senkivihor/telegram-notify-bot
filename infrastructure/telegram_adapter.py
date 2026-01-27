@@ -37,7 +37,10 @@ class TelegramAdapter:
                 "text": text,
                 "reply_markup": keyboard,
             }
-            requests.post(url, json=payload, timeout=5)
+            resp = requests.post(url, json=payload, timeout=5)
+            if not resp.ok:
+                self.logger.error("❌ Failed to send message with buttons: %s", resp.text)
+                return False
             self.logger.info(f"✅ Sent message with buttons to {chat_id}")
             return True
         except Exception as e:
