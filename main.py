@@ -86,11 +86,12 @@ def telegram_webhook():
                 telegram.send_message(
                     chat_id,
                     (
-                        "🆘 **Потрібна допомога?**\n\n"
+                        "🆘 Потрібна допомога?\n"
                         "Якщо у вас є питання щодо замовлення, звертайтеся напряму:\n"
                         f"👤 {SUPPORT_CONTACT_USERNAME}\n"
                         f"📞 {LOCATION_CONTACT_PHONE}"
                     ),
+                    parse_mode=None,
                 )
                 return Response("OK", 200)
 
@@ -100,7 +101,7 @@ def telegram_webhook():
                     telegram.send_admin_menu(chat_id)
                     return Response("OK", 200)
 
-                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
+                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🧵")
                 telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
 
@@ -109,7 +110,7 @@ def telegram_webhook():
                 if str(chat_id) in ADMIN_IDS:
                     admin_service.send_stats(chat_id)
                     return Response("OK", 200)
-                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
+                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🧵")
                 telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
 
@@ -118,7 +119,7 @@ def telegram_webhook():
                 if str(chat_id) in ADMIN_IDS:
                     admin_service.send_broadcast_instructions(chat_id)
                     return Response("OK", 200)
-                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
+                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🧵")
                 telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
 
