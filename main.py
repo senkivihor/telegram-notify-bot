@@ -45,7 +45,7 @@ LOCATION_LON = float(require_env("LOCATION_LON"))
 LOCATION_VIDEO_URL = require_env("LOCATION_VIDEO_URL")
 LOCATION_SCHEDULE_TEXT = normalize_multiline_env(require_env("LOCATION_SCHEDULE_TEXT"))
 LOCATION_CONTACT_PHONE = require_env("LOCATION_CONTACT_PHONE")
-SUPPORT_CONTACT_USERNAME = os.getenv("SUPPORT_CONTACT_USERNAME")
+SUPPORT_CONTACT_USERNAME = os.getenv("SUPPORT_CONTACT_USERNAME", "@SupportHero")
 ADMIN_IDS = {item.strip() for item in ADMIN_IDS_RAW.split(",") if item.strip()}
 
 # Init
