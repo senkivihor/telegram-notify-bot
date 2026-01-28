@@ -16,3 +16,13 @@ class IUserRepository(ABC):
     def get_user_by_phone(self, phone_number: str) -> Optional[UserDTO]:
         """Finds a user by their phone number. Returns None if not found."""
         pass
+
+    @abstractmethod
+    def count_all_users(self) -> int:
+        """Returns total number of users."""
+        pass
+
+    @abstractmethod
+    def get_all_user_ids(self) -> list[str]:
+        """Returns all telegram_id values for broadcast operations."""
+        pass

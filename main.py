@@ -10,6 +10,7 @@ from infrastructure.database import init_db
 from infrastructure.repositories import SqlAlchemyUserRepository
 from infrastructure.telegram_adapter import TelegramAdapter
 
+from services.admin import AdminService
 from services.location import LocationService
 from services.notifier import NotificationService
 
@@ -61,12 +62,17 @@ location_info = LocationInfo(
 location_service = LocationService(telegram, location_info)
 
 
+def get_admin_service() -> AdminService:
+    return AdminService(repo, telegram)
+
+
 # ==========================
 #  TELEGRAM WEBHOOK
 # ==========================
 @app.route("/webhook/telegram", methods=["POST"])
 def telegram_webhook():
     data = request.json
+    admin_service = get_admin_service()
 
     if "message" in data:
         msg = data["message"]
@@ -76,6 +82,7 @@ def telegram_webhook():
             text = msg["text"].strip()
             # Handle /help
             if text == "/help":
+                logger.info("/help received for chat_id=%s", chat_id)
                 telegram.send_message(
                     chat_id,
                     (
@@ -95,6 +102,35 @@ def telegram_webhook():
 
                 telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
                 telegram.ask_for_phone(chat_id)
+                return Response("OK", 200)
+
+            # Handle admin stats button
+            if text in {"📊 Статистика", "📊 Stats"}:
+                if str(chat_id) in ADMIN_IDS:
+                    admin_service.send_stats(chat_id)
+                    return Response("OK", 200)
+                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
+                telegram.ask_for_phone(chat_id)
+                return Response("OK", 200)
+
+            # Handle broadcast button
+            if text in {"📢 Розсилка", "📢 Broadcast"}:
+                if str(chat_id) in ADMIN_IDS:
+                    admin_service.send_broadcast_instructions(chat_id)
+                    return Response("OK", 200)
+                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
+                telegram.ask_for_phone(chat_id)
+                return Response("OK", 200)
+
+            # Handle /broadcast command
+            if text.startswith("/broadcast"):
+                if str(chat_id) not in ADMIN_IDS:
+                    telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
+                    telegram.ask_for_phone(chat_id)
+                    return Response("OK", 200)
+
+                broadcast_text = text[len("/broadcast") :].strip()
+                admin_service.broadcast(chat_id, broadcast_text)
                 return Response("OK", 200)
 
             # A. Handle "Deep Link" or Start

@@ -58,6 +58,8 @@ ADMIN_IDS=12345,67890
 
 # 5. Support contacts (optional, used in /help)
 SUPPORT_CONTACT_USERNAME=@SupportHero
+# Help will reuse LOCATION_CONTACT_PHONE for the phone line
+
 ```
 
 ### 3. Run with Docker
@@ -92,8 +94,12 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 
 ### 3. Admin Access (RBAC)
 - Configure `ADMIN_IDS` with a comma-separated list of Telegram chat IDs of admins/owners.
-- Behavior: when an admin sends `/start`, the bot shows a distinct admin keyboard (e.g., "🛠️ Статистика", "📢 Розсилка").
+- Behavior: when an admin sends `/start`, the bot shows a distinct admin keyboard (e.g., "📊 Статистика", "📢 Розсилка").
 - Regular users never see or learn about the admin menu; they get the standard onboarding flow instead.
+- Admin actions:
+  - "📊 Статистика": shows total user count.
+  - "📢 Розсилка": shows safe broadcast instructions.
+  - `/broadcast <text>` (admins only): sends `<text>` to all users and reports successes/failures.
 
 ### 4. Triggering Notifications (API)
 - Endpoint: POST /trigger-notification

@@ -71,6 +71,45 @@ def test_help_sends_support_text(client, mock_dependencies):
     mock_telegram.send_admin_menu.assert_not_called()
 
 
+def test_admin_stats_button(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo.count_all_users.return_value = 5
+
+    with patch("main.ADMIN_IDS", {"42"}):
+        payload = {"message": {"chat": {"id": 42}, "text": "📊 Статистика"}}
+
+        response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_repo.count_all_users.assert_called_once()
+    mock_telegram.send_message.assert_called_once()
+    assert "Total Users: **5**" in mock_telegram.send_message.call_args[0][1]
+
+
+def test_admin_broadcast_handles_blocked_user(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo.get_all_user_ids.return_value = ["u1", "u2"]
+
+    def side_effect(chat_id, text, reply_markup=None):
+        if chat_id in {"u1", "99", 99}:  # allow admin report (int) and first user
+            return True
+        raise Exception("403")
+
+    mock_telegram.send_message.side_effect = side_effect
+
+    with patch("main.ADMIN_IDS", {"99"}):
+        payload = {"message": {"chat": {"id": 99}, "text": "/broadcast hello"}}
+
+        response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    # send_message called 3 times: u1, u2, admin report
+    assert mock_telegram.send_message.call_count == 3
+    report_text = mock_telegram.send_message.call_args[0][1]
+    assert "Sent to 1 users" in report_text
+    assert "Failed/Blocked: 1" in report_text
+
+
 def test_telegram_start_command_admin(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
 
