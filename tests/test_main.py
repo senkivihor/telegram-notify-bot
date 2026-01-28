@@ -49,6 +49,23 @@ def test_telegram_start_command(client, mock_dependencies):
     assert response.status_code == 200
     # Check if the bot asked for the phone number
     mock_telegram.ask_for_phone.assert_called_once_with(12345)
+    mock_telegram.send_admin_menu.assert_not_called()
+
+
+def test_telegram_start_command_admin(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    # Arrange: mark this chat_id as admin
+    with patch("main.ADMIN_IDS", {"4242"}):
+        payload = {"message": {"chat": {"id": 4242}, "text": "/start"}}
+
+        # Act
+        response = client.post("/webhook/telegram", json=payload)
+
+    # Assert
+    assert response.status_code == 200
+    mock_telegram.send_admin_menu.assert_called_once_with(4242)
+    mock_telegram.ask_for_phone.assert_not_called()
 
 
 # 2. Test Sharing Phone Number (User clicks 'Share Phone')

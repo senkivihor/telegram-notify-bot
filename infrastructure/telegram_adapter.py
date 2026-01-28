@@ -76,6 +76,32 @@ class TelegramAdapter:
         }
         requests.post(url, json=payload)
 
+    def send_admin_menu(self, chat_id: str):
+        """Sends the admin-only reply keyboard with privileged options."""
+        url = f"{self.api_url}/sendMessage"
+        keyboard = {
+            "keyboard": [
+                [
+                    {
+                        "text": "🛠️ Статистика",
+                    }
+                ],
+                [
+                    {
+                        "text": "📢 Розсилка",
+                    }
+                ],
+            ],
+            "one_time_keyboard": False,
+            "resize_keyboard": True,
+        }
+        payload = {
+            "chat_id": chat_id,
+            "text": "🔐 Адмін меню",
+            "reply_markup": keyboard,
+        }
+        requests.post(url, json=payload)
+
     def send_location_menu(self, chat_id: str):
         """Re-opens a lightweight keyboard with the location CTA after contact sharing."""
         url = f"{self.api_url}/sendMessage"

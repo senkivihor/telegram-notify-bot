@@ -52,6 +52,9 @@ LOCATION_LON=00.000000
 LOCATION_VIDEO_URL=https://example.com/entrance.mp4
 LOCATION_SCHEDULE_TEXT="⏰ **Наш графік:**\n• Пн-Пт: 10:00 – 19:00\n• Сб: 11:00 – 14:00 (за дзвінком)\n• Нд: Вихідний"
 LOCATION_CONTACT_PHONE=+380000000000
+
+# 4. Admins (comma-separated chat IDs; optional)
+ADMIN_IDS=12345,67890
 ```
 
 ### 3. Run with Docker
@@ -80,11 +83,16 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 4. Phone number is mapped to the user's Chat ID and stored.
 
 ### 2. Location & Schedule
-- Button: "📍 Де нас знайти?" appears on the reply keyboard during onboarding (send `/menu` to refresh the keyboard if you don't see it; bot will confirm the menu was updated).
+- Button: "📍 Де нас знайти?" appears on the reply keyboard during onboarding.
 - Behavior: sends a map pin, entrance video (or compatible clip), operating hours, plus inline buttons to open the map and call.
 - Env overrides (optional): `LOCATION_LAT`, `LOCATION_LON`, `LOCATION_VIDEO_URL`, `LOCATION_SCHEDULE_TEXT`.
 
-### 3. Triggering Notifications (API)
+### 3. Admin Access (RBAC)
+- Configure `ADMIN_IDS` with a comma-separated list of Telegram chat IDs of admins/owners.
+- Behavior: when an admin sends `/start`, the bot shows a distinct admin keyboard (e.g., "🛠️ Статистика", "📢 Розсилка").
+- Regular users never see or learn about the admin menu; they get the standard onboarding flow instead.
+
+### 4. Triggering Notifications (API)
 - Endpoint: POST /trigger-notification
 - Headers:
   - Content-Type: application/json
