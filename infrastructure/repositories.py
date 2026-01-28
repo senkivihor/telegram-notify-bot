@@ -38,3 +38,12 @@ class SqlAlchemyUserRepository(IUserRepository):
                     telegram_id=user.telegram_id,
                 )
             return None
+
+    def count_all_users(self) -> int:
+        with self._session_factory() as session:
+            return session.query(UserORM).count()
+
+    def get_all_user_ids(self) -> list[str]:
+        with self._session_factory() as session:
+            rows = session.query(UserORM.telegram_id).all()
+            return [str(row[0]) for row in rows if row[0] is not None]
