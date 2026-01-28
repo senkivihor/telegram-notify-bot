@@ -52,6 +52,25 @@ def test_telegram_start_command(client, mock_dependencies):
     mock_telegram.send_admin_menu.assert_not_called()
 
 
+def test_help_sends_support_text(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    with patch("main.SUPPORT_CONTACT_USERNAME", "@SupportHero"), patch("main.LOCATION_CONTACT_PHONE", "+111 222 333"):
+        payload = {"message": {"chat": {"id": 111}, "text": "/help"}}
+
+        response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_telegram.send_message.assert_called_once()
+    args = mock_telegram.send_message.call_args[0]
+    assert args[0] == 111
+    assert "Потрібна допомога" in args[1]
+    assert "@SupportHero" in args[1]
+    assert "+111 222 333" in args[1]
+    mock_telegram.ask_for_phone.assert_not_called()
+    mock_telegram.send_admin_menu.assert_not_called()
+
+
 def test_telegram_start_command_admin(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
 
@@ -65,6 +84,33 @@ def test_telegram_start_command_admin(client, mock_dependencies):
     # Assert
     assert response.status_code == 200
     mock_telegram.send_admin_menu.assert_called_once_with(4242)
+    mock_telegram.ask_for_phone.assert_not_called()
+
+
+def test_admin_command_non_admin_soft_fail(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    payload = {"message": {"chat": {"id": 700}, "text": "/admin"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_telegram.send_admin_menu.assert_not_called()
+    mock_telegram.send_message.assert_called_once()
+    assert "головного меню" in mock_telegram.send_message.call_args[0][1]
+    mock_telegram.ask_for_phone.assert_called_once_with(700)
+
+
+def test_admin_command_admin_shows_menu(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    with patch("main.ADMIN_IDS", {"800"}):
+        payload = {"message": {"chat": {"id": 800}, "text": "/admin"}}
+
+        response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_telegram.send_admin_menu.assert_called_once_with(800)
     mock_telegram.ask_for_phone.assert_not_called()
 
 
