@@ -21,6 +21,7 @@ app = Flask(__name__)
 # Config
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 INTERNAL_KEY = os.getenv("INTERNAL_API_KEY")
+ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "")
 
 
 def require_env(name: str) -> str:
@@ -43,6 +44,7 @@ LOCATION_LON = float(require_env("LOCATION_LON"))
 LOCATION_VIDEO_URL = require_env("LOCATION_VIDEO_URL")
 LOCATION_SCHEDULE_TEXT = normalize_multiline_env(require_env("LOCATION_SCHEDULE_TEXT"))
 LOCATION_CONTACT_PHONE = require_env("LOCATION_CONTACT_PHONE")
+ADMIN_IDS = {item.strip() for item in ADMIN_IDS_RAW.split(",") if item.strip()}
 
 # Init
 init_db()
@@ -74,6 +76,10 @@ def telegram_webhook():
             # A. Handle "Deep Link" or Start
             # Format: /start ORD-123
             if text.startswith("/start"):
+                if str(chat_id) in ADMIN_IDS:
+                    telegram.send_admin_menu(chat_id)
+                    return Response("OK", 200)
+
                 telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
 
