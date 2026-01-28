@@ -9,14 +9,60 @@ class TelegramAdapter:
         self.api_url = f"https://api.telegram.org/bot{bot_token}"
         self.logger = logging.getLogger("TelegramAdapter")
 
-    def send_message(self, chat_id: str, text: str, reply_markup: dict | None = None):
-        """Sends a standard text message. Optionally attach reply_markup (e.g., remove keyboard)."""
+    def send_message(
+        self, chat_id: str, text: str, reply_markup: dict | None = None, parse_mode: str | None = "Markdown"
+    ):
+        """Send a text message and surface Telegram API errors; retry without parse_mode on parse failures."""
+        url = f"{self.api_url}/sendMessage"
+        payload = {"chat_id": chat_id, "text": text}
+        if parse_mode:
+            payload["parse_mode"] = parse_mode
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+
         try:
-            url = f"{self.api_url}/sendMessage"
-            payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
-            if reply_markup:
-                payload["reply_markup"] = reply_markup
-            requests.post(url, json=payload, timeout=5)
+            response = requests.post(url, json=payload, timeout=5)
+            # Telegram returns HTTP 200 even when ok=false, so check both
+            if not response.ok:
+                self.logger.error(
+                    "❌ Telegram sendMessage failed for %s: status=%s body=%s",
+                    chat_id,
+                    response.status_code,
+                    response.text,
+                )
+                if parse_mode and response.status_code == 400 and "parse" in response.text.lower():
+                    self.logger.info("Retrying sendMessage without parse_mode for chat_id=%s", chat_id)
+                    payload.pop("parse_mode", None)
+                    retry_response = requests.post(url, json=payload, timeout=5)
+                    if retry_response.ok and retry_response.json().get("ok", False):
+                        self.logger.info("✅ Sent message to %s after retry without parse_mode", chat_id)
+                        return True
+                    self.logger.error(
+                        "❌ Retry sendMessage failed for %s: status=%s body=%s",
+                        chat_id,
+                        retry_response.status_code,
+                        retry_response.text,
+                    )
+                return False
+
+            body = response.json()
+            if not body.get("ok", False):
+                self.logger.error("❌ Telegram API returned ok=false for %s: %s", chat_id, body)
+                if parse_mode and "parse" in str(body).lower():
+                    self.logger.info("Retrying sendMessage without parse_mode for chat_id=%s", chat_id)
+                    payload.pop("parse_mode", None)
+                    retry_response = requests.post(url, json=payload, timeout=5)
+                    if retry_response.ok and retry_response.json().get("ok", False):
+                        self.logger.info("✅ Sent message to %s after retry without parse_mode", chat_id)
+                        return True
+                    self.logger.error(
+                        "❌ Retry sendMessage failed for %s: status=%s body=%s",
+                        chat_id,
+                        retry_response.status_code,
+                        retry_response.text,
+                    )
+                return False
+
             self.logger.info(f"✅ Sent message to {chat_id}")
             return True
         except Exception as e:
