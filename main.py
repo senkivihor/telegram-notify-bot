@@ -44,6 +44,7 @@ LOCATION_LON = float(require_env("LOCATION_LON"))
 LOCATION_VIDEO_URL = require_env("LOCATION_VIDEO_URL")
 LOCATION_SCHEDULE_TEXT = normalize_multiline_env(require_env("LOCATION_SCHEDULE_TEXT"))
 LOCATION_CONTACT_PHONE = require_env("LOCATION_CONTACT_PHONE")
+SUPPORT_CONTACT_USERNAME = os.getenv("SUPPORT_CONTACT_USERNAME", "@YourWifeUsername")
 ADMIN_IDS = {item.strip() for item in ADMIN_IDS_RAW.split(",") if item.strip()}
 
 # Init
@@ -73,6 +74,29 @@ def telegram_webhook():
 
         if "text" in msg:
             text = msg["text"].strip()
+            # Handle /help
+            if text == "/help":
+                telegram.send_message(
+                    chat_id,
+                    (
+                        "🆘 **Потрібна допомога?**\n\n"
+                        "Якщо у вас є питання щодо замовлення, звертайтеся напряму:\n"
+                        f"👤 {SUPPORT_CONTACT_USERNAME}\n"
+                        f"📞 {LOCATION_CONTACT_PHONE}"
+                    ),
+                )
+                return Response("OK", 200)
+
+            # Handle /admin with RBAC
+            if text == "/admin":
+                if str(chat_id) in ADMIN_IDS:
+                    telegram.send_admin_menu(chat_id)
+                    return Response("OK", 200)
+
+                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
+                telegram.ask_for_phone(chat_id)
+                return Response("OK", 200)
+
             # A. Handle "Deep Link" or Start
             # Format: /start ORD-123
             if text.startswith("/start"):

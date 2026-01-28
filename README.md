@@ -55,6 +55,9 @@ LOCATION_CONTACT_PHONE=+380000000000
 
 # 4. Admins (comma-separated chat IDs; optional)
 ADMIN_IDS=12345,67890
+
+# 5. Support contacts (optional, used in /help)
+SUPPORT_CONTACT_USERNAME=@SupportHero
 ```
 
 ### 3. Run with Docker
