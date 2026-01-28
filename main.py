@@ -86,11 +86,12 @@ def telegram_webhook():
                 telegram.send_message(
                     chat_id,
                     (
-                        "🆘 **Потрібна допомога?**\n\n"
+                        "🆘 Потрібна допомога?\n\n"
                         "Якщо у вас є питання щодо замовлення, звертайтеся напряму:\n"
                         f"👤 {SUPPORT_CONTACT_USERNAME}\n"
                         f"📞 {LOCATION_CONTACT_PHONE}"
                     ),
+                    parse_mode=None,
                 )
                 return Response("OK", 200)
 
