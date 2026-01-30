@@ -7,6 +7,7 @@ A production-grade, secure notification service for sending transactional update
 - 🛡️ Internal API gateway: protected /trigger-notification endpoint for CRM/website/warehouse systems.
 - 🐳 Fully Dockerized with a single docker-compose command.
 - 🏗️ Hexagonal Architecture keeps business logic decoupled and testable.
+- 🖼️ Portfolio CTA: inline "Open Instagram" button plus reply-keyboard entry to showcase your work.
 
 ## Tech Stack
 - Language: Python 3.11
@@ -60,6 +61,10 @@ ADMIN_IDS=12345,67890
 SUPPORT_CONTACT_USERNAME=@SupportHero
 # Help will reuse LOCATION_CONTACT_PHONE for the phone line
 
+# 6. Portfolio (optional, recommended)
+# If absent, the bot logs a warning and falls back to a placeholder link.
+INSTAGRAM_URL=https://instagram.com/your-portfolio
+
 ```
 
 ### 3. Run with Docker
@@ -86,11 +91,18 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 2. User taps the link and hits "Start" in Telegram.
 3. Bot prompts to "Share Phone Number".
 4. Phone number is mapped to the user's Chat ID and stored.
+5. Users can tap "📸 Our Work" to see your Instagram portfolio with an inline "Open Instagram" button for a clean tap-through.
 
 ### 2. Location & Schedule
 - Button: "📍 Де нас знайти?" appears on the reply keyboard during onboarding.
 - Behavior: sends a map pin, entrance video (or compatible clip), operating hours, plus inline buttons to open the map and call.
 - Env overrides (optional): `LOCATION_LAT`, `LOCATION_LON`, `LOCATION_VIDEO_URL`, `LOCATION_SCHEDULE_TEXT`.
+
+### 3. Portfolio CTA (Instagram)
+- Button: "📸 Our Work" lives alongside onboarding buttons and remains available after contact sharing.
+- Behavior: sends a rich message with an inline "Open Instagram" button and the configured `INSTAGRAM_URL`.
+- After a user shares their phone number, the confirmation message also includes the Instagram link to keep them engaged.
+- If `INSTAGRAM_URL` is missing, the bot warns once on startup and uses a placeholder link.
 
 ### 3. Admin Access (RBAC)
 - Configure `ADMIN_IDS` with a comma-separated list of Telegram chat IDs of admins/owners.
