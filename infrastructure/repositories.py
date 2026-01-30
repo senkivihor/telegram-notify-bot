@@ -39,6 +39,18 @@ class SqlAlchemyUserRepository(IUserRepository):
                 )
             return None
 
+    def get_user_by_id(self, telegram_id: str) -> UserDTO | None:
+        with self._session_factory() as session:
+            user = session.query(UserORM).filter_by(telegram_id=telegram_id).first()
+
+            if user:
+                return UserDTO(
+                    phone_number=user.phone_number,
+                    name=user.name,
+                    telegram_id=user.telegram_id,
+                )
+            return None
+
     def count_all_users(self) -> int:
         with self._session_factory() as session:
             return session.query(UserORM).count()

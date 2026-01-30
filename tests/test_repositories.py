@@ -55,3 +55,19 @@ def test_get_user_by_phone_returns_dto(monkeypatch):
     assert result.phone_number == "+7"
     assert result.name == "Jane"
     assert result.telegram_id == "77"
+
+
+def test_get_user_by_id_returns_dto(monkeypatch):
+    session_factory = make_session_factory()
+    monkeypatch.setattr(repositories, "SessionLocal", session_factory)
+    repo = SqlAlchemyUserRepository()
+
+    with session_factory() as session:
+        session.add(UserORM(phone_number="+380", name="Ivan", telegram_id="900"))
+        session.commit()
+
+    result = repo.get_user_by_id("900")
+
+    assert result is not None
+    assert result.name == "Ivan"
+    assert result.telegram_id == "900"

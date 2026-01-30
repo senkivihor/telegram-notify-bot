@@ -18,6 +18,11 @@ class IUserRepository(ABC):
         pass
 
     @abstractmethod
+    def get_user_by_id(self, telegram_id: str) -> Optional[UserDTO]:
+        """Finds a user by their telegram_id. Returns None if not found."""
+        pass
+
+    @abstractmethod
     def count_all_users(self) -> int:
         """Returns total number of users."""
         pass

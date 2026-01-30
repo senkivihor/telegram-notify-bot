@@ -160,7 +160,12 @@ def telegram_webhook():
                     telegram.send_admin_menu(chat_id)
                     return Response("OK", 200)
 
-                telegram.ask_for_phone(chat_id)
+                existing_user = repo.get_user_by_id(str(chat_id))
+                if existing_user:
+                    name = existing_user.name or "there"
+                    telegram.send_main_menu(chat_id, f"З поверненням, {name}! Чим можемо допомогти сьогодні?")
+                else:
+                    telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
 
             # B. Handle portfolio / Instagram showcase
