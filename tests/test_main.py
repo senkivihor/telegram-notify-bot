@@ -160,7 +160,8 @@ def test_telegram_share_contact(client, mock_dependencies):
     # Simulate user sharing their contact
     payload = {"message": {"chat": {"id": 999}, "contact": {"phone_number": "1234567890", "first_name": "Alice"}}}
 
-    response = client.post("/webhook/telegram", json=payload)
+    with patch("main.get_instagram_url", return_value="https://instagram.com/demo"):
+        response = client.post("/webhook/telegram", json=payload)
 
     # Assertions
     assert response.status_code == 200
@@ -168,12 +169,15 @@ def test_telegram_share_contact(client, mock_dependencies):
     # 1. Ensure user is saved to DB (Normalizes phone to +123...)
     mock_repo.save_or_update_user.assert_called_once_with(phone_number="+1234567890", name="Alice", telegram_id="999")
 
-    # 2. Ensure success message removed keyboard, then prompt to use the location button
+    # 2. Ensure success message includes Instagram link and CTA button
     assert mock_telegram.send_message.call_count == 1
     first_args, first_kwargs = mock_telegram.send_message.call_args
     assert first_args[0] == 999
-    assert "Підключено" in first_args[1]
-    assert first_kwargs.get("reply_markup") == {"remove_keyboard": True}
+    assert "Дякуємо, зберегли ваш номер" in first_args[1]
+    assert "https://instagram.com/demo" in first_args[1]
+    assert first_kwargs.get("reply_markup") == {
+        "inline_keyboard": [[{"text": "Відкрити Instagram", "url": "https://instagram.com/demo"}]]
+    }
 
     # 4. Ensure reply keyboard with location was re-opened
     mock_telegram.send_location_menu.assert_called_once_with(999)
@@ -298,6 +302,34 @@ def test_trigger_missing_phone_fails(client, mock_dependencies):
     assert response.status_code == 200
     assert "Failed" in response.json["status"]
     mock_telegram.send_message.assert_not_called()
+
+
+def test_instagram_url_reads_from_env(monkeypatch):
+    import main
+
+    monkeypatch.setenv("INSTAGRAM_URL", "https://instagram.com/from-env")
+    main._INSTAGRAM_WARNING_EMITTED = False
+
+    assert main.get_instagram_url() == "https://instagram.com/from-env"
+
+
+def test_portfolio_button_sends_instagram_link(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    with patch("main.get_instagram_url", return_value="https://instagram.com/demo"):
+        payload = {"message": {"chat": {"id": 303}, "text": "📸 Наші роботи"}}
+
+        response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
+    assert args[0] == 303
+    assert "Подивіться наше портфоліо" in args[1]
+    assert "https://instagram.com/demo" in args[1]
+    assert kwargs.get("reply_markup") == {
+        "inline_keyboard": [[{"text": "Відкрити Instagram", "url": "https://instagram.com/demo"}]]
+    }
 
 
 def test_health_check(client):

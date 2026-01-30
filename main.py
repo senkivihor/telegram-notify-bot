@@ -23,6 +23,8 @@ app = Flask(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 INTERNAL_KEY = os.getenv("INTERNAL_API_KEY")
 ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "")
+DEFAULT_INSTAGRAM_URL = "https://instagram.com/your-portfolio"
+_INSTAGRAM_WARNING_EMITTED = False
 
 
 def require_env(name: str) -> str:
@@ -48,6 +50,19 @@ LOCATION_CONTACT_PHONE = require_env("LOCATION_CONTACT_PHONE")
 SUPPORT_CONTACT_USERNAME = os.getenv("SUPPORT_CONTACT_USERNAME", "@SupportHero")
 ADMIN_IDS = {item.strip() for item in ADMIN_IDS_RAW.split(",") if item.strip()}
 
+
+def get_instagram_url() -> str:
+    """Return the configured Instagram URL, warning once when falling back to default."""
+    global _INSTAGRAM_WARNING_EMITTED
+    url = os.getenv("INSTAGRAM_URL")
+    if url:
+        return url
+    if not _INSTAGRAM_WARNING_EMITTED:
+        logger.warning("INSTAGRAM_URL missing; using default placeholder link.")
+        _INSTAGRAM_WARNING_EMITTED = True
+    return DEFAULT_INSTAGRAM_URL
+
+
 # Init
 init_db()
 repo = SqlAlchemyUserRepository()
@@ -60,6 +75,10 @@ location_info = LocationInfo(
     contact_phone=LOCATION_CONTACT_PHONE,
 )
 location_service = LocationService(telegram, location_info)
+
+
+def instagram_button_markup(instagram_url: str) -> dict:
+    return {"inline_keyboard": [[{"text": "Відкрити Instagram", "url": instagram_url}]]}
 
 
 def get_admin_service() -> AdminService:
@@ -144,6 +163,16 @@ def telegram_webhook():
                 telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
 
+            # B. Handle portfolio / Instagram showcase
+            if text in {"📸 Наші роботи", "📸 Our Work"}:
+                instagram_url = get_instagram_url()
+                telegram.send_message(
+                    chat_id,
+                    ("👀 *Подивіться наше портфоліо!*\n\n" "Ось наші останні роботи:\n" f"{instagram_url}"),
+                    reply_markup=instagram_button_markup(instagram_url),
+                )
+                return Response("OK", 200)
+
             # C. Handle Location request
             if text in {"📍 Локація та контакти", "Локація та контакти", "/location"}:
                 location_service.send_location_details(chat_id)
@@ -159,14 +188,22 @@ def telegram_webhook():
 
             name = contact.get("first_name", "Client")
 
+            instagram_url = get_instagram_url()
+
             # Save User to DB
             repo.save_or_update_user(phone_number=phone_number, name=name, telegram_id=str(chat_id))
 
             # Confirm and hide contact keyboard
             telegram.send_message(
                 chat_id,
-                "✅ Підключено! Ви отримуватимете оновлення замовлень тут.",
-                reply_markup={"remove_keyboard": True},
+                (
+                    "✅ *Дякуємо, зберегли ваш номер!*\n\n"
+                    "Коли замовлення буде готове, бот надішле сповіщення тут.\n"
+                    "Щоб не пропустити оновлення, збережіть цей чат.\n\n"
+                    "Поки чекаєте, зазирніть у наш Instagram 👇\n"
+                    f"{instagram_url}"
+                ),
+                reply_markup=instagram_button_markup(instagram_url),
             )
 
             # Re-open reply keyboard so location CTA stays visible
