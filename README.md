@@ -53,7 +53,7 @@ INTERNAL_API_KEY=my_secure_secret_key_change_me
 LOCATION_LAT=00.000000
 LOCATION_LON=00.000000
 LOCATION_VIDEO_URL=https://example.com/entrance.mp4
-LOCATION_SCHEDULE_TEXT="⏰ **Наш графік:**\n• Пн-Пт: 10:00 – 19:00\n• Сб: 11:00 – 14:00 (за дзвінком)\n• Нд: Вихідний"
+LOCATION_SCHEDULE_TEXT="⏰ Наш графік:\n• Пн-Пт: 10:00 – 19:00\n• Сб: 11:00 – 14:00 (за дзвінком)\n• Нд: Вихідний"
 LOCATION_CONTACT_PHONE=+380000000000
 
 # 4. Admins (comma-separated chat IDs; optional)

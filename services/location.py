@@ -23,9 +23,4 @@ class LocationService:
             caption="Ось наш вхід, щоб легше знайти!",
         )
 
-        # Send schedule text + phone
-        contact_line = f"\n📞 {self.location_info.contact_phone}" if self.location_info.contact_phone else ""
-        schedule_text = f"{self.location_info.schedule_text}{contact_line}"
-        message_text = f"Наша локація та контакти:\n{schedule_text}"
-
-        self.telegram.send_message(chat_id, message_text)
+        # Only send location pin and entrance video; schedule/phone are handled via dedicated buttons
