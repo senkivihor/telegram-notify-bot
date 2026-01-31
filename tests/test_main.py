@@ -392,7 +392,7 @@ def test_health_check(client):
 def test_location_button_triggers_location_flow(client, mock_dependencies):
     mock_repo, mock_telegram, mock_location_service = mock_dependencies
 
-    payload = {"message": {"chat": {"id": 321}, "text": "📍 Локація та контакти"}}
+    payload = {"message": {"chat": {"id": 321}, "text": "📍 Локація"}}
 
     response = client.post("/webhook/telegram", json=payload)
 

@@ -191,7 +191,7 @@ def telegram_webhook():
                 return Response("OK", 200)
 
             # C. Handle Location request
-            if text in {"📍 Локація та контакти", "Локація та контакти", "/location"}:
+            if text in {"📍 Локація", "Локація", "/location"}:
                 location_service.send_location_details(chat_id)
                 return Response("OK", 200)
 
@@ -203,13 +203,12 @@ def telegram_webhook():
 
             # E. Handle schedule button
             if text in {"📅 Графік", "Графік"}:
-                schedule_line = f"{LOCATION_SCHEDULE_TEXT}\n📞 {LOCATION_CONTACT_PHONE}"
-                telegram.send_message(chat_id, schedule_line, parse_mode=None)
+                telegram.send_message(chat_id, LOCATION_SCHEDULE_TEXT, parse_mode=None)
                 return Response("OK", 200)
 
-            # F. Handle location shortcut label variant
-            if text in {"📍 Локація", "Локація"}:
-                location_service.send_location_details(chat_id)
+            # F. Handle contact phone
+            if text in {"📞 Контактний телефон", "Контактний телефон"}:
+                telegram.send_message(chat_id, f"📞 {LOCATION_CONTACT_PHONE}", parse_mode=None)
                 return Response("OK", 200)
 
         # B. Handle "Shared Phone Number"

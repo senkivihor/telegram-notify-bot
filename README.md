@@ -92,8 +92,8 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 1. Send a deep link via SMS or email when an order is placed (e.g., https://t.me/YourBotName?start=ORD-5501).
 2. User taps the link and hits "Start" in Telegram.
 3. Smart welcome selects the keyboard:
-  - Guest: shows "📞 Поділитись номером" (request contact), "💰 Ціни", "📸 Наші роботи", "📍 Локація", "📅 Графік", "🆘 Допомога".
-  - Returning user: shows "💰 Ціни", "📸 Наші роботи", "📍 Локація", "📅 Графік", "🆘 Допомога".
+  - Guest: shows "📞 Поділитись номером" (request contact), "💰 Ціни", "📸 Наші роботи", "📍 Локація", "📅 Графік", "📞 Контактний телефон", "🆘 Допомога".
+  - Returning user: shows "💰 Ціни", "📸 Наші роботи", "📍 Локація", "📅 Графік", "📞 Контактний телефон", "🆘 Допомога".
 4. When a guest shares their phone, the number is mapped to the Chat ID and stored.
 5. Users can tap "💰 Ціни" to view the Markdown price list, or "📸 Our Work" to see your Instagram portfolio with an inline "Open Instagram" button.
 
@@ -112,6 +112,9 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 - Button: "💰 Ціни" on both guest and member keyboards.
 - Behavior: sends the Markdown-rendered text from services/price_data.py through PriceService.
 - Editing prices: update the text in services/price_data.py; no code changes needed.
+
+### 5. Location, Schedule, Contact
+- Buttons: "📍 Локація" sends map + video; "📅 Графік" sends the schedule text; "📞 Контактний телефон" sends the call number.
 
 ### 3. Admin Access (RBAC)
 - Configure `ADMIN_IDS` with a comma-separated list of Telegram chat IDs of admins/owners.
