@@ -13,6 +13,7 @@ from infrastructure.telegram_adapter import TelegramAdapter
 from services.admin import AdminService
 from services.location import LocationService
 from services.notifier import NotificationService
+from services.price_service import PriceService
 
 # Setup
 logging.basicConfig(level=logging.INFO)
@@ -75,6 +76,28 @@ location_info = LocationInfo(
     contact_phone=LOCATION_CONTACT_PHONE,
 )
 location_service = LocationService(telegram, location_info)
+price_service = PriceService()
+
+
+def handle_welcome_flow(user_id: int | str):
+    user = repo.get_user(str(user_id))
+    if user:
+        name = user.name or "друже"
+        telegram.send_message(
+            user_id,
+            f"🎉 З поверненням, {name}! Чим можемо допомогти?",
+            reply_markup=telegram.get_member_keyboard(),
+            parse_mode=None,
+        )
+    else:
+        telegram.send_message(
+            user_id,
+            "👋 Вітаємо! Щоб почати роботу, будь ласка, поділіться номером.",
+            reply_markup=telegram.get_guest_keyboard(),
+            parse_mode=None,
+        )
+
+    return Response("OK", 200)
 
 
 def instagram_button_markup(instagram_url: str) -> dict:
@@ -100,7 +123,7 @@ def telegram_webhook():
         if "text" in msg:
             text = msg["text"].strip()
             # Handle /help
-            if text == "/help":
+            if text in {"/help", "🆘 Допомога"}:
                 logger.info("/help received for chat_id=%s", chat_id)
                 telegram.send_message(
                     chat_id,
@@ -120,9 +143,8 @@ def telegram_webhook():
                     telegram.send_admin_menu(chat_id)
                     return Response("OK", 200)
 
-                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🧵")
-                telegram.ask_for_phone(chat_id)
-                return Response("OK", 200)
+                telegram.send_message(chat_id, "🤔 Команда не розпізнана.")
+                return handle_welcome_flow(chat_id)
 
             # Handle admin stats button
             if text in {"📊 Статистика", "📊 Stats"}:
@@ -156,17 +178,7 @@ def telegram_webhook():
             # A. Handle "Deep Link" or Start
             # Format: /start ORD-123
             if text.startswith("/start"):
-                if str(chat_id) in ADMIN_IDS:
-                    telegram.send_admin_menu(chat_id)
-                    return Response("OK", 200)
-
-                existing_user = repo.get_user_by_id(str(chat_id))
-                if existing_user:
-                    name = existing_user.name or "there"
-                    telegram.send_main_menu(chat_id, f"З поверненням, {name}! Чим можемо допомогти сьогодні?")
-                else:
-                    telegram.ask_for_phone(chat_id)
-                return Response("OK", 200)
+                return handle_welcome_flow(chat_id)
 
             # B. Handle portfolio / Instagram showcase
             if text in {"📸 Наші роботи", "📸 Our Work"}:
@@ -180,6 +192,23 @@ def telegram_webhook():
 
             # C. Handle Location request
             if text in {"📍 Локація та контакти", "Локація та контакти", "/location"}:
+                location_service.send_location_details(chat_id)
+                return Response("OK", 200)
+
+            # D. Handle price list
+            if text in {"💰 Ціни", "💰 Prices"}:
+                prices_text = price_service.get_formatted_prices()
+                telegram.send_message(chat_id, prices_text, parse_mode="Markdown")
+                return Response("OK", 200)
+
+            # E. Handle schedule button
+            if text in {"📅 Графік", "Графік"}:
+                schedule_line = f"{LOCATION_SCHEDULE_TEXT}\n📞 {LOCATION_CONTACT_PHONE}"
+                telegram.send_message(chat_id, schedule_line, parse_mode=None)
+                return Response("OK", 200)
+
+            # F. Handle location shortcut label variant
+            if text in {"📍 Локація", "Локація"}:
                 location_service.send_location_details(chat_id)
                 return Response("OK", 200)
 
