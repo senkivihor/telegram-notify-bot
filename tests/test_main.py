@@ -412,3 +412,44 @@ def test_menu_resends_keyboard(client, mock_dependencies):
     mock_telegram.ask_for_phone.assert_not_called()
     mock_telegram.send_message.assert_not_called()
     mock_repo.save_or_update_user.assert_not_called()
+
+
+def test_schedule_button_sends_schedule_text(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    payload = {"message": {"chat": {"id": 606}, "text": "📅 Графік"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
+    assert args[0] == 606
+    # schedule text originates from env; ensure we at least see a clock emoji default
+    assert "⏰" in args[1] or "Графік" in args[1]
+    assert kwargs.get("parse_mode") is None
+    # Ensure no request_contact flag in any button
+    markup = kwargs.get("reply_markup")
+    if markup:
+        buttons_flat = [btn for row in markup.get("keyboard", []) for btn in row]
+        assert all("request_contact" not in btn for btn in buttons_flat)
+
+
+def test_contact_phone_button_sends_phone(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    payload = {"message": {"chat": {"id": 707}, "text": "📞 Контактний телефон"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
+    assert args[0] == 707
+    assert "📞" in args[1]
+    assert kwargs.get("parse_mode") is None
+    # Ensure no request_contact flag in any button
+    markup = kwargs.get("reply_markup")
+    if markup:
+        buttons_flat = [btn for row in markup.get("keyboard", []) for btn in row]
+        assert all("request_contact" not in btn for btn in buttons_flat)
