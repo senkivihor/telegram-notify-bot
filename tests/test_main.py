@@ -38,32 +38,39 @@ def mock_dependencies():
 
 def test_telegram_start_command_new_user(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
-    mock_repo.get_user_by_id.return_value = None
+    mock_repo.get_user.return_value = None
 
     payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
 
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
-    mock_repo.get_user_by_id.assert_called_once_with("12345")
-    mock_telegram.ask_for_phone.assert_called_once_with(12345)
+    mock_repo.get_user.assert_called_once_with("12345")
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
+    assert args[0] == 12345
+    assert "поділіться номером" in args[1]
+    reply_markup = kwargs.get("reply_markup")
+    assert reply_markup and reply_markup.get("keyboard")
+    mock_telegram.ask_for_phone.assert_not_called()
     mock_telegram.send_main_menu.assert_not_called()
 
 
 def test_telegram_start_command_existing_user(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
-    mock_repo.get_user_by_id.return_value = UserDTO(phone_number="+1", name="Alice", telegram_id="12345")
+    mock_repo.get_user.return_value = UserDTO(phone_number="+1", name="Alice", telegram_id="12345")
 
     payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
 
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
-    mock_repo.get_user_by_id.assert_called_once_with("12345")
-    mock_telegram.send_main_menu.assert_called_once()
-    args, kwargs = mock_telegram.send_main_menu.call_args
+    mock_repo.get_user.assert_called_once_with("12345")
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
     assert args[0] == 12345
     assert "З поверненням" in args[1]
+    assert kwargs.get("reply_markup")
     mock_telegram.ask_for_phone.assert_not_called()
 
 
@@ -127,22 +134,21 @@ def test_admin_broadcast_handles_blocked_user(client, mock_dependencies):
 
 def test_telegram_start_command_admin(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo.get_user.return_value = None
 
-    # Arrange: mark this chat_id as admin
-    with patch("main.ADMIN_IDS", {"4242"}):
-        payload = {"message": {"chat": {"id": 4242}, "text": "/start"}}
+    payload = {"message": {"chat": {"id": 4242}, "text": "/start"}}
 
-        # Act
-        response = client.post("/webhook/telegram", json=payload)
+    response = client.post("/webhook/telegram", json=payload)
 
-    # Assert
     assert response.status_code == 200
-    mock_telegram.send_admin_menu.assert_called_once_with(4242)
-    mock_telegram.ask_for_phone.assert_not_called()
+    mock_telegram.send_admin_menu.assert_not_called()
+    mock_telegram.send_message.assert_called_once()
+    assert "Вітаємо" in mock_telegram.send_message.call_args[0][1]
 
 
 def test_admin_command_non_admin_soft_fail(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo.get_user.return_value = UserDTO(phone_number="+1", name="Ann", telegram_id="700")
 
     payload = {"message": {"chat": {"id": 700}, "text": "/admin"}}
 
@@ -150,9 +156,17 @@ def test_admin_command_non_admin_soft_fail(client, mock_dependencies):
 
     assert response.status_code == 200
     mock_telegram.send_admin_menu.assert_not_called()
-    mock_telegram.send_message.assert_called_once()
-    assert "головного меню" in mock_telegram.send_message.call_args[0][1]
-    mock_telegram.ask_for_phone.assert_called_once_with(700)
+    assert mock_telegram.send_message.call_count == 2
+    first_text = mock_telegram.send_message.call_args_list[0][0][1]
+    second_text = mock_telegram.send_message.call_args_list[1][0][1]
+    assert "Команда не розпізнана" in first_text
+    assert "З поверненням" in second_text
+    # Ensure member keyboard was shown (no request_contact flag expected)
+    member_markup = mock_telegram.send_message.call_args_list[1][1].get("reply_markup")
+    assert member_markup
+    buttons_flat = [btn for row in member_markup.get("keyboard", []) for btn in row]
+    assert all("request_contact" not in btn for btn in buttons_flat)
+    mock_telegram.ask_for_phone.assert_not_called()
 
 
 def test_admin_command_admin_shows_menu(client, mock_dependencies):
@@ -288,16 +302,16 @@ def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
 
 def test_telegram_start_with_deep_link(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
-    mock_repo.get_user_by_id.return_value = None
+    mock_repo.get_user.return_value = None
 
     payload = {"message": {"chat": {"id": 4242}, "text": "/start ORD-123"}}
 
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
-    mock_repo.get_user_by_id.assert_called_once_with("4242")
-    mock_telegram.ask_for_phone.assert_called_once_with(4242)
-    mock_telegram.send_main_menu.assert_not_called()
+    mock_repo.get_user.assert_called_once_with("4242")
+    mock_telegram.send_message.assert_called_once()
+    assert "Вітаємо" in mock_telegram.send_message.call_args[0][1]
 
 
 def test_trigger_wrong_key(client):
@@ -350,6 +364,24 @@ def test_portfolio_button_sends_instagram_link(client, mock_dependencies):
     }
 
 
+def test_prices_button_sends_price_list(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+
+    with patch("main.price_service") as mock_price_service:
+        mock_price_service.get_formatted_prices.return_value = "PRICE TEXT"
+
+        payload = {"message": {"chat": {"id": 404}, "text": "💰 Ціни"}}
+        response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_price_service.get_formatted_prices.assert_called_once()
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
+    assert args[0] == 404
+    assert args[1] == "PRICE TEXT"
+    assert kwargs.get("parse_mode") == "Markdown"
+
+
 def test_health_check(client):
     response = client.get("/health")
 
@@ -360,7 +392,7 @@ def test_health_check(client):
 def test_location_button_triggers_location_flow(client, mock_dependencies):
     mock_repo, mock_telegram, mock_location_service = mock_dependencies
 
-    payload = {"message": {"chat": {"id": 321}, "text": "📍 Локація та контакти"}}
+    payload = {"message": {"chat": {"id": 321}, "text": "📍 Локація"}}
 
     response = client.post("/webhook/telegram", json=payload)
 

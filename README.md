@@ -8,6 +8,8 @@ A production-grade, secure notification service for sending transactional update
 - 🐳 Fully Dockerized with a single docker-compose command.
 - 🏗️ Hexagonal Architecture keeps business logic decoupled and testable.
 - 🖼️ Portfolio CTA: inline "Open Instagram" button plus reply-keyboard entry to showcase your work.
+- 💰 Price list button: Markdown-formatted services menu loaded from services/price_data.py for easy edits.
+- 🧭 Smart welcome flow: returning users get the main menu immediately; non-admin `/admin` calls are rerouted back to the main menu with a friendly hint.
 
 ## Tech Stack
 - Language: Python 3.11
@@ -89,9 +91,11 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 ### 1. Client Onboarding (User Flow)
 1. Send a deep link via SMS or email when an order is placed (e.g., https://t.me/YourBotName?start=ORD-5501).
 2. User taps the link and hits "Start" in Telegram.
-3. Bot prompts to "Share Phone Number".
-4. Phone number is mapped to the user's Chat ID and stored.
-5. Users can tap "📸 Our Work" to see your Instagram portfolio with an inline "Open Instagram" button for a clean tap-through.
+3. Smart welcome selects the keyboard:
+  - Guest: shows "📞 Поділитись номером" (request contact), "💰 Ціни", "📸 Наші роботи", "📍 Локація", "📅 Графік", "📞 Контактний телефон", "🆘 Допомога".
+  - Returning user: shows "💰 Ціни", "📸 Наші роботи", "📍 Локація", "📅 Графік", "📞 Контактний телефон", "🆘 Допомога".
+4. When a guest shares their phone, the number is mapped to the Chat ID and stored.
+5. Users can tap "💰 Ціни" to view the Markdown price list, or "📸 Our Work" to see your Instagram portfolio with an inline "Open Instagram" button.
 
 ### 2. Location & Schedule
 - Button: "📍 Де нас знайти?" appears on the reply keyboard during onboarding.
@@ -104,10 +108,18 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 - After a user shares their phone number, the confirmation message also includes the Instagram link to keep them engaged.
 - If `INSTAGRAM_URL` is missing, the bot warns once on startup and uses a placeholder link.
 
+### 4. Price List
+- Button: "💰 Ціни" on both guest and member keyboards.
+- Behavior: sends the Markdown-rendered text from services/price_data.py through PriceService.
+- Editing prices: update the text in services/price_data.py; no code changes needed.
+
+### 5. Location, Schedule, Contact
+- Buttons: "📍 Локація" sends map + video; "📅 Графік" sends the schedule text; "📞 Контактний телефон" sends the call number.
+
 ### 3. Admin Access (RBAC)
 - Configure `ADMIN_IDS` with a comma-separated list of Telegram chat IDs of admins/owners.
 - Behavior: when an admin sends `/start`, the bot shows a distinct admin keyboard (e.g., "📊 Статистика", "📢 Розсилка").
-- Regular users never see or learn about the admin menu; they get the standard onboarding flow instead.
+- Regular users never see or learn about the admin menu; they get the standard onboarding flow instead. Non-admin `/admin` calls show a brief "Команда не розпізнана" then return the user to the smart welcome menu.
 - Admin actions:
   - "📊 Статистика": shows total user count.
   - "📢 Розсилка": shows safe broadcast instructions.

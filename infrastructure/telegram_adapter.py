@@ -10,24 +10,29 @@ class TelegramAdapter:
         self.logger = logging.getLogger("TelegramAdapter")
 
     @staticmethod
-    def get_onboarding_keyboard() -> dict:
+    def get_guest_keyboard() -> dict:
         return {
             "keyboard": [
                 [
                     {
-                        "text": "📱 Поділитися номером для замовлення",
+                        "text": "📞 Поділитись номером",
                         "request_contact": True,
                     }
                 ],
                 [
-                    {
-                        "text": "📍 Локація та контакти",
-                    }
+                    {"text": "💰 Ціни"},
+                    {"text": "📸 Наші роботи"},
                 ],
                 [
-                    {
-                        "text": "📸 Наші роботи",
-                    }
+                    {"text": "📍 Локація"},
+                    {"text": "📅 Графік"},
+                ],
+                [
+                    {"text": "📞 Контактний телефон"},
+                    {"text": "🆘 Допомога"},
+                ],
+                [
+                    {"text": "🆘 Допомога"},
                 ],
             ],
             "one_time_keyboard": True,
@@ -35,18 +40,23 @@ class TelegramAdapter:
         }
 
     @staticmethod
-    def get_main_menu_keyboard() -> dict:
+    def get_member_keyboard() -> dict:
         return {
             "keyboard": [
                 [
-                    {
-                        "text": "📍 Локація та контакти",
-                    }
+                    {"text": "💰 Ціни"},
+                    {"text": "📸 Наші роботи"},
                 ],
                 [
-                    {
-                        "text": "📸 Наші роботи",
-                    }
+                    {"text": "📍 Локація"},
+                    {"text": "📅 Графік"},
+                ],
+                [
+                    {"text": "📞 Контактний телефон"},
+                    {"text": "🆘 Допомога"},
+                ],
+                [
+                    {"text": "🆘 Допомога"},
                 ],
             ],
             "one_time_keyboard": False,
@@ -144,7 +154,7 @@ class TelegramAdapter:
         self.send_message(
             chat_id,
             "👋 Вітаємо! Щоб продовжити, поділіться своїм номером.",
-            reply_markup=self.get_onboarding_keyboard(),
+            reply_markup=self.get_guest_keyboard(),
             parse_mode=None,
         )
 
@@ -178,9 +188,9 @@ class TelegramAdapter:
         """Re-opens a lightweight keyboard with the location CTA after contact sharing."""
         self.send_main_menu(
             chat_id,
-            'Натисніть "Локація та контакти" щоб отримати адресу, графік та контактний телефон.',
+            'Натисніть "📍 Локація" щоб отримати адресу та "📞 Контактний телефон" для дзвінка.',
         )
 
     def send_main_menu(self, chat_id: str, text: str):
         """Shows the main menu keyboard without requesting contact."""
-        self.send_message(chat_id, text, reply_markup=self.get_main_menu_keyboard(), parse_mode=None)
+        self.send_message(chat_id, text, reply_markup=self.get_member_keyboard(), parse_mode=None)
