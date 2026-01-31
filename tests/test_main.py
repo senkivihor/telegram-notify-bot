@@ -27,48 +27,55 @@ def mock_dependencies():
         patch("main.repo") as mock_repo,
         patch("main.telegram") as mock_telegram,
         patch("main.location_service") as mock_location_service,
+        patch("main.price_service") as mock_price_service,
         patch("main.INTERNAL_KEY", "test_secret_key"),
     ):
-
-        yield mock_repo, mock_telegram, mock_location_service
+        yield mock_repo, mock_telegram, mock_location_service, mock_price_service
 
 
 # --- TEST CASES ---
 
 
 def test_telegram_start_command_new_user(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
-    mock_repo.get_user_by_id.return_value = None
+    mock_repo, mock_telegram, _, _ = mock_dependencies
+    mock_repo.get_user.return_value = None
 
     payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
 
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
-    mock_repo.get_user_by_id.assert_called_once_with("12345")
-    mock_telegram.ask_for_phone.assert_called_once_with(12345)
+    mock_repo.get_user.assert_called_once_with("12345")
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
+    assert args[0] == 12345
+    assert "Welcome" in args[1]
+    assert "Share your contact" in args[1]
+    assert kwargs.get("reply_markup")
+    mock_telegram.ask_for_phone.assert_not_called()
     mock_telegram.send_main_menu.assert_not_called()
 
 
 def test_telegram_start_command_existing_user(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
-    mock_repo.get_user_by_id.return_value = UserDTO(phone_number="+1", name="Alice", telegram_id="12345")
+    mock_repo, mock_telegram, _, _ = mock_dependencies
+    mock_repo.get_user.return_value = UserDTO(phone_number="+1", name="Alice", telegram_id="12345")
 
     payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
 
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
-    mock_repo.get_user_by_id.assert_called_once_with("12345")
-    mock_telegram.send_main_menu.assert_called_once()
-    args, kwargs = mock_telegram.send_main_menu.call_args
+    mock_repo.get_user.assert_called_once_with("12345")
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
     assert args[0] == 12345
-    assert "З поверненням" in args[1]
+    assert "Welcome back" in args[1]
+    assert kwargs.get("reply_markup")
     mock_telegram.ask_for_phone.assert_not_called()
 
 
 def test_help_sends_support_text(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     with patch("main.SUPPORT_CONTACT_USERNAME", "@SupportHero"), patch("main.LOCATION_CONTACT_PHONE", "+111 222 333"):
         payload = {"message": {"chat": {"id": 111}, "text": "/help"}}
@@ -87,7 +94,7 @@ def test_help_sends_support_text(client, mock_dependencies):
 
 
 def test_admin_stats_button(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.count_all_users.return_value = 5
 
     with patch("main.ADMIN_IDS", {"42"}):
@@ -102,7 +109,7 @@ def test_admin_stats_button(client, mock_dependencies):
 
 
 def test_admin_broadcast_handles_blocked_user(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_all_user_ids.return_value = ["u1", "u2"]
 
     def side_effect(chat_id, text, reply_markup=None):
@@ -126,23 +133,22 @@ def test_admin_broadcast_handles_blocked_user(client, mock_dependencies):
 
 
 def test_telegram_start_command_admin(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
+    mock_repo.get_user.return_value = None
 
-    # Arrange: mark this chat_id as admin
-    with patch("main.ADMIN_IDS", {"4242"}):
-        payload = {"message": {"chat": {"id": 4242}, "text": "/start"}}
+    payload = {"message": {"chat": {"id": 4242}, "text": "/start"}}
 
-        # Act
-        response = client.post("/webhook/telegram", json=payload)
+    response = client.post("/webhook/telegram", json=payload)
 
-    # Assert
     assert response.status_code == 200
-    mock_telegram.send_admin_menu.assert_called_once_with(4242)
-    mock_telegram.ask_for_phone.assert_not_called()
+    mock_telegram.send_admin_menu.assert_not_called()
+    mock_telegram.send_message.assert_called_once()
+    assert "Welcome" in mock_telegram.send_message.call_args[0][1]
 
 
 def test_admin_command_non_admin_soft_fail(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
+    mock_repo.get_user.return_value = None
 
     payload = {"message": {"chat": {"id": 700}, "text": "/admin"}}
 
@@ -150,13 +156,16 @@ def test_admin_command_non_admin_soft_fail(client, mock_dependencies):
 
     assert response.status_code == 200
     mock_telegram.send_admin_menu.assert_not_called()
-    mock_telegram.send_message.assert_called_once()
-    assert "головного меню" in mock_telegram.send_message.call_args[0][1]
-    mock_telegram.ask_for_phone.assert_called_once_with(700)
+    assert mock_telegram.send_message.call_count == 2
+    first_text = mock_telegram.send_message.call_args_list[0][0][1]
+    second_text = mock_telegram.send_message.call_args_list[1][0][1]
+    assert "Command not recognized" in first_text
+    assert "Welcome" in second_text
+    mock_telegram.ask_for_phone.assert_not_called()
 
 
 def test_admin_command_admin_shows_menu(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     with patch("main.ADMIN_IDS", {"800"}):
         payload = {"message": {"chat": {"id": 800}, "text": "/admin"}}
@@ -170,7 +179,7 @@ def test_admin_command_admin_shows_menu(client, mock_dependencies):
 
 # 2. Test Sharing Phone Number (User clicks 'Share Phone')
 def test_telegram_share_contact(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     # Simulate user sharing their contact
     payload = {"message": {"chat": {"id": 999}, "contact": {"phone_number": "1234567890", "first_name": "Alice"}}}
@@ -207,7 +216,7 @@ def test_trigger_unauthorized(client):
 
 # 4. Test Trigger API - SUCCESS (Happy Path)
 def test_trigger_success(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     # Setup Mock: DB finds the user
     mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555")
@@ -235,7 +244,7 @@ def test_trigger_success(client, mock_dependencies):
 
 # 5. Test Trigger API - USER NOT FOUND
 def test_trigger_user_not_found(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     # Setup Mock: DB returns None (User not in system)
     mock_repo.get_user_by_phone.return_value = None
@@ -253,7 +262,7 @@ def test_trigger_user_not_found(client, mock_dependencies):
 
 # 6. Test Trigger API - TELEGRAM API FAILURE
 def test_trigger_telegram_api_failure(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     # Setup Mock: DB finds the user
     mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555")
@@ -274,7 +283,7 @@ def test_trigger_telegram_api_failure(client, mock_dependencies):
 
 
 def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 111}, "text": "hello"}}
 
@@ -287,17 +296,17 @@ def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
 
 
 def test_telegram_start_with_deep_link(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
-    mock_repo.get_user_by_id.return_value = None
+    mock_repo, mock_telegram, _, _ = mock_dependencies
+    mock_repo.get_user.return_value = None
 
     payload = {"message": {"chat": {"id": 4242}, "text": "/start ORD-123"}}
 
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
-    mock_repo.get_user_by_id.assert_called_once_with("4242")
-    mock_telegram.ask_for_phone.assert_called_once_with(4242)
-    mock_telegram.send_main_menu.assert_not_called()
+    mock_repo.get_user.assert_called_once_with("4242")
+    mock_telegram.send_message.assert_called_once()
+    assert "Welcome" in mock_telegram.send_message.call_args[0][1]
 
 
 def test_trigger_wrong_key(client):
@@ -309,7 +318,7 @@ def test_trigger_wrong_key(client):
 
 
 def test_trigger_missing_phone_fails(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_user_by_phone.return_value = None
 
     headers = {"X-Internal-API-Key": "test_secret_key"}
@@ -332,7 +341,7 @@ def test_instagram_url_reads_from_env(monkeypatch):
 
 
 def test_portfolio_button_sends_instagram_link(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     with patch("main.get_instagram_url", return_value="https://instagram.com/demo"):
         payload = {"message": {"chat": {"id": 303}, "text": "📸 Наші роботи"}}
@@ -350,6 +359,23 @@ def test_portfolio_button_sends_instagram_link(client, mock_dependencies):
     }
 
 
+def test_prices_button_sends_price_list(client, mock_dependencies):
+    mock_repo, mock_telegram, _, mock_price_service = mock_dependencies
+    mock_price_service.get_formatted_prices.return_value = "PRICE TEXT"
+
+    payload = {"message": {"chat": {"id": 404}, "text": "💰 Ціни"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_price_service.get_formatted_prices.assert_called_once()
+    mock_telegram.send_message.assert_called_once()
+    args, kwargs = mock_telegram.send_message.call_args
+    assert args[0] == 404
+    assert args[1] == "PRICE TEXT"
+    assert kwargs.get("parse_mode") == "Markdown"
+
+
 def test_health_check(client):
     response = client.get("/health")
 
@@ -358,7 +384,7 @@ def test_health_check(client):
 
 
 def test_location_button_triggers_location_flow(client, mock_dependencies):
-    mock_repo, mock_telegram, mock_location_service = mock_dependencies
+    mock_repo, mock_telegram, mock_location_service, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 321}, "text": "📍 Локація та контакти"}}
 
@@ -370,7 +396,7 @@ def test_location_button_triggers_location_flow(client, mock_dependencies):
 
 
 def test_menu_resends_keyboard(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 777}, "text": "/menu"}}
 

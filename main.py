@@ -13,6 +13,7 @@ from infrastructure.telegram_adapter import TelegramAdapter
 from services.admin import AdminService
 from services.location import LocationService
 from services.notifier import NotificationService
+from services.price_service import PriceService
 
 # Setup
 logging.basicConfig(level=logging.INFO)
@@ -75,6 +76,35 @@ location_info = LocationInfo(
     contact_phone=LOCATION_CONTACT_PHONE,
 )
 location_service = LocationService(telegram, location_info)
+price_service = PriceService()
+
+
+def handle_welcome_flow(user_id: int | str):
+    """Smart welcome flow that routes guests vs members to the right menu."""
+    telegram_id = str(user_id)
+    user = None
+    if hasattr(repo, "get_user"):
+        user = repo.get_user(telegram_id)
+    else:
+        user = repo.get_user_by_id(telegram_id)
+
+    if user:
+        name = user.name or "друже"
+        telegram.send_message(
+            user_id,
+            f"🎉 Welcome back, {name}! How can we help?",
+            reply_markup=telegram.get_member_keyboard(),
+            parse_mode="Markdown",
+        )
+    else:
+        telegram.send_message(
+            user_id,
+            "👋 Welcome! Share your contact to get your Digital Client Card.",
+            reply_markup=telegram.get_guest_keyboard(),
+            parse_mode="Markdown",
+        )
+
+    return Response("OK", 200)
 
 
 def instagram_button_markup(instagram_url: str) -> dict:
@@ -120,9 +150,8 @@ def telegram_webhook():
                     telegram.send_admin_menu(chat_id)
                     return Response("OK", 200)
 
-                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🧵")
-                telegram.ask_for_phone(chat_id)
-                return Response("OK", 200)
+                telegram.send_message(chat_id, "🤔 Command not recognized.")
+                return handle_welcome_flow(chat_id)
 
             # Handle admin stats button
             if text in {"📊 Статистика", "📊 Stats"}:
@@ -156,17 +185,7 @@ def telegram_webhook():
             # A. Handle "Deep Link" or Start
             # Format: /start ORD-123
             if text.startswith("/start"):
-                if str(chat_id) in ADMIN_IDS:
-                    telegram.send_admin_menu(chat_id)
-                    return Response("OK", 200)
-
-                existing_user = repo.get_user_by_id(str(chat_id))
-                if existing_user:
-                    name = existing_user.name or "there"
-                    telegram.send_main_menu(chat_id, f"З поверненням, {name}! Чим можемо допомогти сьогодні?")
-                else:
-                    telegram.ask_for_phone(chat_id)
-                return Response("OK", 200)
+                return handle_welcome_flow(chat_id)
 
             # B. Handle portfolio / Instagram showcase
             if text in {"📸 Наші роботи", "📸 Our Work"}:
@@ -176,6 +195,12 @@ def telegram_webhook():
                     ("👀 *Подивіться наше портфоліо!*\n\n" "Ось наші останні роботи:\n" f"{instagram_url}"),
                     reply_markup=instagram_button_markup(instagram_url),
                 )
+                return Response("OK", 200)
+
+            # Prices
+            if text in {"💰 Ціни", "💰 Prices"}:
+                prices_text = price_service.get_formatted_prices()
+                telegram.send_message(chat_id, prices_text, parse_mode="Markdown")
                 return Response("OK", 200)
 
             # C. Handle Location request

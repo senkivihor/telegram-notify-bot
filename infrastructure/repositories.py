@@ -51,6 +51,10 @@ class SqlAlchemyUserRepository(IUserRepository):
                 )
             return None
 
+    def get_user(self, telegram_id: str) -> UserDTO | None:
+        """Alias for compatibility with welcome flow logic."""
+        return self.get_user_by_id(telegram_id)
+
     def count_all_users(self) -> int:
         with self._session_factory() as session:
             return session.query(UserORM).count()
