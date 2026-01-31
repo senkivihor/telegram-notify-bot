@@ -37,9 +37,5 @@ def test_location_flow_sends_pin_video_and_buttons():
 
     assert telegram.sent_location == (123, 49.1, 24.5)
     assert telegram.sent_video == (123, "https://example.com/video.mp4", "Ось наш вхід, щоб легше знайти!")
-
-    assert telegram.sent_message is not None
-    chat_id, text, reply_markup = telegram.sent_message
-    assert chat_id == 123
-    assert "⏰" in text and "+380000000000" in text
-    assert "Наша локація та контакти" in text
+    # Location button now only sends location + video; no extra message
+    assert telegram.sent_message is None
