@@ -36,20 +36,35 @@ def mock_dependencies():
 # --- TEST CASES ---
 
 
-# 1. Test /start Command (User clicks Start)
-def test_telegram_start_command(client, mock_dependencies):
+def test_telegram_start_command_new_user(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo.get_user_by_id.return_value = None
 
-    # Simulate Telegram sending a /start message
     payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
 
     response = client.post("/webhook/telegram", json=payload)
 
-    # Assertions
     assert response.status_code == 200
-    # Check if the bot asked for the phone number
+    mock_repo.get_user_by_id.assert_called_once_with("12345")
     mock_telegram.ask_for_phone.assert_called_once_with(12345)
-    mock_telegram.send_admin_menu.assert_not_called()
+    mock_telegram.send_main_menu.assert_not_called()
+
+
+def test_telegram_start_command_existing_user(client, mock_dependencies):
+    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo.get_user_by_id.return_value = UserDTO(phone_number="+1", name="Alice", telegram_id="12345")
+
+    payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
+
+    response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    mock_repo.get_user_by_id.assert_called_once_with("12345")
+    mock_telegram.send_main_menu.assert_called_once()
+    args, kwargs = mock_telegram.send_main_menu.call_args
+    assert args[0] == 12345
+    assert "З поверненням" in args[1]
+    mock_telegram.ask_for_phone.assert_not_called()
 
 
 def test_help_sends_support_text(client, mock_dependencies):
@@ -273,13 +288,16 @@ def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
 
 def test_telegram_start_with_deep_link(client, mock_dependencies):
     mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo.get_user_by_id.return_value = None
 
     payload = {"message": {"chat": {"id": 4242}, "text": "/start ORD-123"}}
 
     response = client.post("/webhook/telegram", json=payload)
 
     assert response.status_code == 200
+    mock_repo.get_user_by_id.assert_called_once_with("4242")
     mock_telegram.ask_for_phone.assert_called_once_with(4242)
+    mock_telegram.send_main_menu.assert_not_called()
 
 
 def test_trigger_wrong_key(client):

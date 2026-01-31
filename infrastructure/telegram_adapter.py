@@ -9,6 +9,50 @@ class TelegramAdapter:
         self.api_url = f"https://api.telegram.org/bot{bot_token}"
         self.logger = logging.getLogger("TelegramAdapter")
 
+    @staticmethod
+    def get_onboarding_keyboard() -> dict:
+        return {
+            "keyboard": [
+                [
+                    {
+                        "text": "📱 Поділитися номером для замовлення",
+                        "request_contact": True,
+                    }
+                ],
+                [
+                    {
+                        "text": "📍 Локація та контакти",
+                    }
+                ],
+                [
+                    {
+                        "text": "📸 Наші роботи",
+                    }
+                ],
+            ],
+            "one_time_keyboard": True,
+            "resize_keyboard": True,
+        }
+
+    @staticmethod
+    def get_main_menu_keyboard() -> dict:
+        return {
+            "keyboard": [
+                [
+                    {
+                        "text": "📍 Локація та контакти",
+                    }
+                ],
+                [
+                    {
+                        "text": "📸 Наші роботи",
+                    }
+                ],
+            ],
+            "one_time_keyboard": False,
+            "resize_keyboard": True,
+        }
+
     def send_message(
         self, chat_id: str, text: str, reply_markup: dict | None = None, parse_mode: str | None = "Markdown"
     ):
@@ -97,35 +141,12 @@ class TelegramAdapter:
 
     def ask_for_phone(self, chat_id: str):
         """Sends a button asking the user to share their phone number."""
-        url = f"{self.api_url}/sendMessage"
-        keyboard = {
-            "keyboard": [
-                [
-                    {
-                        "text": "📱 Поділитися номером для замовлення",
-                        "request_contact": True,
-                    }
-                ],
-                [
-                    {
-                        "text": "📍 Локація та контакти",
-                    }
-                ],
-                [
-                    {
-                        "text": "📸 Наші роботи",
-                    }
-                ],
-            ],
-            "one_time_keyboard": True,
-            "resize_keyboard": True,
-        }
-        payload = {
-            "chat_id": chat_id,
-            "text": "👋 Вітаємо! Натисніть кнопку нижче, щоб прив'язати ваш акаунт.",
-            "reply_markup": keyboard,
-        }
-        requests.post(url, json=payload)
+        self.send_message(
+            chat_id,
+            "👋 Вітаємо! Щоб продовжити, поділіться своїм номером.",
+            reply_markup=self.get_onboarding_keyboard(),
+            parse_mode=None,
+        )
 
     def send_admin_menu(self, chat_id: str):
         """Sends the admin-only reply keyboard with privileged options."""
@@ -155,26 +176,11 @@ class TelegramAdapter:
 
     def send_location_menu(self, chat_id: str):
         """Re-opens a lightweight keyboard with the location CTA after contact sharing."""
-        url = f"{self.api_url}/sendMessage"
-        keyboard = {
-            "keyboard": [
-                [
-                    {
-                        "text": "📍 Локація та контакти",
-                    }
-                ],
-                [
-                    {
-                        "text": "📸 Наші роботи",
-                    }
-                ],
-            ],
-            "one_time_keyboard": False,
-            "resize_keyboard": True,
-        }
-        payload = {
-            "chat_id": chat_id,
-            "text": 'Натисніть "Локація та контакти" щоб отримати адресу, графік та контактний телефон.',
-            "reply_markup": keyboard,
-        }
-        requests.post(url, json=payload)
+        self.send_main_menu(
+            chat_id,
+            'Натисніть "Локація та контакти" щоб отримати адресу, графік та контактний телефон.',
+        )
+
+    def send_main_menu(self, chat_id: str, text: str):
+        """Shows the main menu keyboard without requesting contact."""
+        self.send_message(chat_id, text, reply_markup=self.get_main_menu_keyboard(), parse_mode=None)
