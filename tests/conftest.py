@@ -12,3 +12,4 @@ os.environ.setdefault(
     ("⏰ Наш графік:\n" "• Пн-Пт: 10:00 – 19:00\n" "• Сб: 11:00 – 14:00 (за дзвінком)\n" "• Нд: Вихідний"),
 )
 os.environ.setdefault("LOCATION_CONTACT_PHONE", "+380000000000")
+os.environ.setdefault("MAPS_URL", "https://maps.example.com")

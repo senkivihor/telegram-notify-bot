@@ -10,6 +10,8 @@ A production-grade, secure notification service for sending transactional update
 - 🖼️ Portfolio CTA: inline "Open Instagram" button plus reply-keyboard entry to showcase your work.
 - 💰 Price list button: Markdown-formatted services menu loaded from services/price_data.py for easy edits.
 - 🧭 Smart welcome flow: returning users get the main menu immediately; non-admin `/admin` calls are rerouted back to the main menu with a friendly hint.
+- 🗓️ Delayed feedback loop (NPS): automatically checks pickup status 2 business days after “Order Ready” and collects ratings.
+- 🔐 Protected cron endpoint + GitHub Actions scheduler for feedback processing.
 
 ## Tech Stack
 - Language: Python 3.11
@@ -66,6 +68,12 @@ SUPPORT_CONTACT_USERNAME=@SupportHero
 # 6. Portfolio (optional, recommended)
 # If absent, the bot logs a warning and falls back to a placeholder link.
 INSTAGRAM_URL=https://instagram.com/your-portfolio
+
+# 7. Feedback loop (optional, recommended)
+# Google Maps URL for 5★ review CTA
+MAPS_URL=https://search.google.com/local/writereview?placeid=your_business_id
+# Cron secret for protected feedback processing endpoint
+CRON_SECRET=change_me_super_secret
 
 ```
 
@@ -154,6 +162,34 @@ Responses:
 - 200 OK: {"status": "Failed: User not found"} (user has not started the bot)
 - 403 Forbidden: invalid API key
 
+### 5. Feedback Loop (Post-Service NPS)
+The feedback flow starts **2 business days** after the “Order Ready” notification is sent. If the scheduled time falls on Saturday/Sunday, it shifts to **Monday 10:00**.
+
+**Flow:**
+1. Pickup check: “Ви вже встигли його забрати?” with “✅ Так, забрав(ла)” / “❌ Ще ні”.
+2. If “❌ Ще ні”: reschedules after 36 hours (business time), up to 3 attempts.
+3. If “✅ Так, забрав(ла)”: asks for rating (1–5).
+4. Rating responses:
+  - 5★ → asks for Google Maps review (uses `MAPS_URL`).
+  - 4★ → thank-you message.
+  - 1–3★ → alerts admins.
+
+**Protected processing endpoint:**
+GET /tasks/check-feedback?token=<CRON_SECRET>
+
+Returns JSON: {"processed": <count>}
+
+### 6. Scheduler (GitHub Actions)
+A workflow runs every hour and calls the protected endpoint:
+
+```
+curl -X GET "${{ secrets.DEPLOYED_URL }}/tasks/check-feedback?token=${{ secrets.CRON_SECRET }}"
+```
+
+Set these GitHub Repository Secrets:
+- DEPLOYED_URL (e.g., https://my-bot.onrender.com)
+- CRON_SECRET (must match your app’s `CRON_SECRET`)
+
 ## Development & Testing
 The project uses pytest; external calls (Telegram API, DB) are mocked, so tests run offline.
 
@@ -176,6 +212,7 @@ poetry run pytest
 ## Security Best Practices
 - Never commit .env to version control.
 - Rotate your INTERNAL_API_KEY periodically.
+- Rotate CRON_SECRET periodically.
 - Run behind a reverse proxy (Nginx or Traefik) with SSL (HTTPS) in production; Telegram webhooks require HTTPS.
 
 ## Hosting notes

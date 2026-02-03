@@ -1,8 +1,11 @@
 import os
 
-from sqlalchemy import Column, Integer, String, create_engine
+from core.models import FeedbackStatus
+
+from sqlalchemy import Column, DateTime, Enum as SAEnum, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import StaticPool
+
 
 # Connect to DB
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bot.db")
@@ -41,6 +44,17 @@ class UserORM(Base):
     phone_number = Column(String, unique=True, index=True, nullable=False)
     name = Column(String)
     telegram_id = Column(String, unique=True, nullable=False)
+
+
+class FeedbackTaskORM(Base):
+    __tablename__ = "feedback_tasks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False)
+    scheduled_for = Column(DateTime, nullable=False, index=True)
+    status = Column(SAEnum(FeedbackStatus, name="feedback_status", native_enum=False), nullable=False)
+    pickup_attempts = Column(Integer, nullable=False, default=0)
 
 
 def init_db():

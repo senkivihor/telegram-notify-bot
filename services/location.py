@@ -22,5 +22,3 @@ class LocationService:
             video_url=self.location_info.video_url,
             caption="Ось наш вхід, щоб легше знайти!",
         )
-
-        # Only send location pin and entrance video; schedule/phone are handled via dedicated buttons

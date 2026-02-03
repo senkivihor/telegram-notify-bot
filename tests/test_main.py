@@ -27,17 +27,17 @@ def mock_dependencies():
         patch("main.repo") as mock_repo,
         patch("main.telegram") as mock_telegram,
         patch("main.location_service") as mock_location_service,
+        patch("main.feedback_service") as mock_feedback_service,
         patch("main.INTERNAL_KEY", "test_secret_key"),
     ):
-
-        yield mock_repo, mock_telegram, mock_location_service
+        yield mock_repo, mock_telegram, mock_location_service, mock_feedback_service
 
 
 # --- TEST CASES ---
 
 
 def test_telegram_start_command_new_user(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_user.return_value = None
 
     payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
@@ -57,7 +57,7 @@ def test_telegram_start_command_new_user(client, mock_dependencies):
 
 
 def test_telegram_start_command_existing_user(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_user.return_value = UserDTO(phone_number="+1", name="Alice", telegram_id="12345")
 
     payload = {"message": {"chat": {"id": 12345}, "text": "/start"}}
@@ -75,7 +75,7 @@ def test_telegram_start_command_existing_user(client, mock_dependencies):
 
 
 def test_help_sends_support_text(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     with patch("main.SUPPORT_CONTACT_USERNAME", "@SupportHero"), patch("main.LOCATION_CONTACT_PHONE", "+111 222 333"):
         payload = {"message": {"chat": {"id": 111}, "text": "/help"}}
@@ -94,7 +94,7 @@ def test_help_sends_support_text(client, mock_dependencies):
 
 
 def test_admin_stats_button(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.count_all_users.return_value = 5
 
     with patch("main.ADMIN_IDS", {"42"}):
@@ -109,7 +109,7 @@ def test_admin_stats_button(client, mock_dependencies):
 
 
 def test_admin_broadcast_handles_blocked_user(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_all_user_ids.return_value = ["u1", "u2"]
 
     def side_effect(chat_id, text, reply_markup=None):
@@ -133,7 +133,7 @@ def test_admin_broadcast_handles_blocked_user(client, mock_dependencies):
 
 
 def test_telegram_start_command_admin(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_user.return_value = None
 
     payload = {"message": {"chat": {"id": 4242}, "text": "/start"}}
@@ -147,7 +147,7 @@ def test_telegram_start_command_admin(client, mock_dependencies):
 
 
 def test_admin_command_non_admin_soft_fail(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_user.return_value = UserDTO(phone_number="+1", name="Ann", telegram_id="700")
 
     payload = {"message": {"chat": {"id": 700}, "text": "/admin"}}
@@ -170,7 +170,7 @@ def test_admin_command_non_admin_soft_fail(client, mock_dependencies):
 
 
 def test_admin_command_admin_shows_menu(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     with patch("main.ADMIN_IDS", {"800"}):
         payload = {"message": {"chat": {"id": 800}, "text": "/admin"}}
@@ -184,7 +184,7 @@ def test_admin_command_admin_shows_menu(client, mock_dependencies):
 
 # 2. Test Sharing Phone Number (User clicks 'Share Phone')
 def test_telegram_share_contact(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     # Simulate user sharing their contact
     payload = {"message": {"chat": {"id": 999}, "contact": {"phone_number": "1234567890", "first_name": "Alice"}}}
@@ -221,10 +221,10 @@ def test_trigger_unauthorized(client):
 
 # 4. Test Trigger API - SUCCESS (Happy Path)
 def test_trigger_success(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, mock_feedback_service = mock_dependencies
 
     # Setup Mock: DB finds the user
-    mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555")
+    mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555", id=10)
     mock_repo.get_user_by_phone.return_value = mock_user
 
     # Setup Mock: Telegram sends successfully
@@ -245,11 +245,12 @@ def test_trigger_success(client, mock_dependencies):
     assert args[0] == "555"  # Chat ID
     assert "Ура! Ваше замовлення вже готове!" in args[1]  # Message body contains Order ID
     assert "Ми все підготували і чекаємо на вас." in args[1]
+    mock_feedback_service.schedule_feedback_for_user.assert_called_once_with(10)
 
 
 # 5. Test Trigger API - USER NOT FOUND
 def test_trigger_user_not_found(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     # Setup Mock: DB returns None (User not in system)
     mock_repo.get_user_by_phone.return_value = None
@@ -267,7 +268,7 @@ def test_trigger_user_not_found(client, mock_dependencies):
 
 # 6. Test Trigger API - TELEGRAM API FAILURE
 def test_trigger_telegram_api_failure(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     # Setup Mock: DB finds the user
     mock_user = UserDTO(phone_number="+123", name="Bob", telegram_id="555")
@@ -288,7 +289,7 @@ def test_trigger_telegram_api_failure(client, mock_dependencies):
 
 
 def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 111}, "text": "hello"}}
 
@@ -301,7 +302,7 @@ def test_telegram_ignores_irrelevant_message(client, mock_dependencies):
 
 
 def test_telegram_start_with_deep_link(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_user.return_value = None
 
     payload = {"message": {"chat": {"id": 4242}, "text": "/start ORD-123"}}
@@ -323,7 +324,7 @@ def test_trigger_wrong_key(client):
 
 
 def test_trigger_missing_phone_fails(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_user_by_phone.return_value = None
 
     headers = {"X-Internal-API-Key": "test_secret_key"}
@@ -346,7 +347,7 @@ def test_instagram_url_reads_from_env(monkeypatch):
 
 
 def test_portfolio_button_sends_instagram_link(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     with patch("main.get_instagram_url", return_value="https://instagram.com/demo"):
         payload = {"message": {"chat": {"id": 303}, "text": "📸 Наші роботи"}}
@@ -365,7 +366,7 @@ def test_portfolio_button_sends_instagram_link(client, mock_dependencies):
 
 
 def test_prices_button_sends_price_list(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     with patch("main.price_service") as mock_price_service:
         mock_price_service.get_formatted_prices.return_value = "PRICE TEXT"
@@ -389,8 +390,14 @@ def test_health_check(client):
     assert response.data == b"OK"
 
 
+def test_feedback_task_endpoint_rejects_missing_token(client, mock_dependencies):
+    response = client.get("/tasks/check-feedback")
+
+    assert response.status_code == 403
+
+
 def test_location_button_triggers_location_flow(client, mock_dependencies):
-    mock_repo, mock_telegram, mock_location_service = mock_dependencies
+    mock_repo, mock_telegram, mock_location_service, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 321}, "text": "📍 Локація"}}
 
@@ -402,7 +409,7 @@ def test_location_button_triggers_location_flow(client, mock_dependencies):
 
 
 def test_menu_resends_keyboard(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 777}, "text": "/menu"}}
 
@@ -415,7 +422,7 @@ def test_menu_resends_keyboard(client, mock_dependencies):
 
 
 def test_schedule_button_sends_schedule_text(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 606}, "text": "📅 Графік"}}
 
@@ -436,7 +443,7 @@ def test_schedule_button_sends_schedule_text(client, mock_dependencies):
 
 
 def test_contact_phone_button_sends_phone(client, mock_dependencies):
-    mock_repo, mock_telegram, _ = mock_dependencies
+    mock_repo, mock_telegram, _, _ = mock_dependencies
 
     payload = {"message": {"chat": {"id": 707}, "text": "📞 Контактний телефон"}}
 

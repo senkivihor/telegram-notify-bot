@@ -1,0 +1,14 @@
+name: Feedback Scheduler
+
+on:
+    schedule:
+        - cron: "0 * * * *"
+    workflow_dispatch:
+
+jobs:
+    trigger-feedback-check:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Call feedback check endpoint
+              run: |
+                  curl -X GET "${{ secrets.DEPLOYED_URL }}/tasks/check-feedback?token=${{ secrets.CRON_SECRET }}"
