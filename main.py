@@ -7,10 +7,11 @@ from flask import Flask, Response, request
 
 # Imports
 from infrastructure.database import init_db
-from infrastructure.repositories import SqlAlchemyUserRepository
+from infrastructure.repositories import SqlAlchemyFeedbackTaskRepository, SqlAlchemyUserRepository
 from infrastructure.telegram_adapter import TelegramAdapter
 
 from services.admin import AdminService
+from services.feedback import FeedbackButtons, FeedbackService
 from services.location import LocationService
 from services.notifier import NotificationService
 from services.price_service import PriceService
@@ -26,6 +27,8 @@ INTERNAL_KEY = os.getenv("INTERNAL_API_KEY")
 ADMIN_IDS_RAW = os.getenv("ADMIN_IDS", "")
 DEFAULT_INSTAGRAM_URL = "https://instagram.com/your-portfolio"
 _INSTAGRAM_WARNING_EMITTED = False
+MAPS_URL = os.getenv("MAPS_URL")
+CRON_SECRET = os.getenv("CRON_SECRET", "")
 
 
 def require_env(name: str) -> str:
@@ -67,6 +70,7 @@ def get_instagram_url() -> str:
 # Init
 init_db()
 repo = SqlAlchemyUserRepository()
+feedback_repo = SqlAlchemyFeedbackTaskRepository()
 telegram = TelegramAdapter(TELEGRAM_TOKEN)
 location_info = LocationInfo(
     latitude=LOCATION_LAT,
@@ -77,6 +81,7 @@ location_info = LocationInfo(
 )
 location_service = LocationService(telegram, location_info)
 price_service = PriceService()
+feedback_service = FeedbackService(repo, feedback_repo, telegram, admin_ids=ADMIN_IDS, maps_url=MAPS_URL)
 
 
 def handle_welcome_flow(user_id: int | str):
@@ -122,6 +127,13 @@ def telegram_webhook():
 
         if "text" in msg:
             text = msg["text"].strip()
+            if text in {FeedbackButtons.yes, FeedbackButtons.no}:
+                feedback_service.handle_pickup_response(str(chat_id), text)
+                return Response("OK", 200)
+
+            if text in {"1", "2", "3", "4", "5"}:
+                feedback_service.handle_rating(str(chat_id), int(text))
+                return Response("OK", 200)
             # Handle /help
             if text in {"/help", "🆘 Допомога"}:
                 logger.info("/help received for chat_id=%s", chat_id)
@@ -261,6 +273,7 @@ def trigger():
         telegram,
         schedule_text=LOCATION_SCHEDULE_TEXT,
         contact_phone=LOCATION_CONTACT_PHONE,
+        feedback_service=feedback_service,
     )
     result = service.notify_order_ready(
         phone_number=phone_number,
@@ -278,6 +291,16 @@ def trigger():
 def health_check():
     """Lightweight endpoint for UptimeRobot to keep the bot awake."""
     return "OK", 200
+
+
+@app.route("/tasks/check-feedback", methods=["GET"])
+def check_feedback_tasks():
+    token = request.args.get("token")
+    if not token or token != CRON_SECRET:
+        return Response("Forbidden", 403)
+
+    processed = feedback_service.process_queue()
+    return {"processed": processed}, 200
 
 
 # === RUN SERVER ===

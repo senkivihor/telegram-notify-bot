@@ -1,15 +1,23 @@
 from infrastructure.repositories import SqlAlchemyUserRepository
 from infrastructure.telegram_adapter import TelegramAdapter
 
+from services.feedback import FeedbackService
+
 
 class NotificationService:
     def __init__(
-        self, repo: SqlAlchemyUserRepository, telegram: TelegramAdapter, schedule_text: str, contact_phone: str
+        self,
+        repo: SqlAlchemyUserRepository,
+        telegram: TelegramAdapter,
+        schedule_text: str,
+        contact_phone: str,
+        feedback_service: FeedbackService,
     ):
         self.repo = repo
         self.telegram = telegram
         self.schedule_text = schedule_text
         self.contact_phone = contact_phone
+        self.feedback_service = feedback_service
 
     def notify_order_ready(self, phone_number: str, order_id: str, items: list) -> str:
         # 1. Find user by phone
@@ -30,6 +38,8 @@ class NotificationService:
         )
         # 3. Send
         if self.telegram.send_message(user.telegram_id, message):
+            if user.id is not None:
+                self.feedback_service.schedule_feedback_for_user(user.id)
             return "Success"
         else:
             return "Failed: Telegram API Error"
