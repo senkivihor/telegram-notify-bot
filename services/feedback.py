@@ -118,7 +118,12 @@ class FeedbackService:
                     scheduled_for=next_time,
                     pickup_attempts=attempts,
                 )
-            self.telegram.send_message(telegram_id, NO_TEXT, parse_mode=None)
+            self.telegram.send_message(
+                telegram_id,
+                NO_TEXT,
+                reply_markup=self.telegram.get_member_keyboard(),
+                parse_mode=None,
+            )
             return
 
         if response_text == FeedbackButtons.yes:
@@ -135,25 +140,44 @@ class FeedbackService:
 
         if score == 5:
             if self.maps_url:
-                markup = {"inline_keyboard": [[{"text": "🗺️ Google Maps", "url": self.maps_url}]]}
-            else:
-                markup = None
+                self.telegram.send_message(
+                    telegram_id,
+                    "Будемо вдячні за відгук у Google Maps:",
+                    reply_markup={"inline_keyboard": [[{"text": "🗺️ Google Maps", "url": self.maps_url}]]},
+                    parse_mode=None,
+                )
             self.telegram.send_message(
                 telegram_id,
-                "Дякуємо! 😍 Ми дуже раді! Будемо вдячні за відгук у Google Maps.",
-                reply_markup=markup,
+                "Дякуємо! 😍 Ми дуже раді!",
+                reply_markup=self.telegram.get_member_keyboard(),
                 parse_mode=None,
             )
             return
         if score == 4:
-            self.telegram.send_message(telegram_id, "Дякуємо! Ми будемо старатися ще краще. 🙌", parse_mode=None)
+            self.telegram.send_message(
+                telegram_id,
+                "Дякуємо! Ми будемо старатися ще краще. 🙌",
+                reply_markup=self.telegram.get_member_keyboard(),
+                parse_mode=None,
+            )
             return
 
         if 1 <= score <= 3:
-            self.telegram.send_message(telegram_id, "Нам прикро. 😔 Власник зв'яжеться з вами.", parse_mode=None)
+            self.telegram.send_message(
+                telegram_id,
+                "Нам дуже прикро. 😔 Ми зв'яжемось з Вами, щоб виправити ситуацію.",
+                reply_markup=self.telegram.get_member_keyboard(),
+                parse_mode=None,
+            )
             for admin_id in self.admin_ids:
                 self.telegram.send_message(
                     admin_id,
-                    f"🚨 Negative Feedback! User {telegram_id} rated {score} stars.",
-                    parse_mode=None,
+                    (
+                        "🚨 **ALARM: Negative Feedback!**\n"
+                        f"User: {user.name or 'Unknown'}\n"
+                        f"Phone: `{user.phone_number or 'N/A'}`\n"
+                        f"Rating: {score} stars\n"
+                        "*Please contact them ASAP!*"
+                    ),
+                    parse_mode="Markdown",
                 )

@@ -27,7 +27,7 @@ per-file-ignores = [
     "core/*.py:D100,D101,D102,D103,D104,D106,D107,D205",
     "infrastructure/*.py:D100,D101,D102,D103,D104,D107,D205,F541",
     "services/*.py:D100,D101,D102,D103,D104,D106,D107,D205",
-    "tests/*.py:D100,D101,D102,D103,D104,D106,D107,D205",
+    "tests/*.py:D100,D101,D102,D103,D104,D106,D107,D205,W503",
     "main.py:D100,D101,D102,D103,D104,D106,D107,D205",
 ]
 

@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, patch
 
 from core.models import FeedbackStatus, FeedbackTaskDTO, UserDTO
 
+from infrastructure.telegram_adapter import TelegramAdapter
+
 from services.feedback import (
     FeedbackButtons,
     FeedbackService,
@@ -17,6 +19,7 @@ def make_service(maps_url: str | None = None, admin_ids: set[str] | None = None)
     user_repo = MagicMock()
     feedback_repo = MagicMock()
     telegram = MagicMock()
+    telegram.get_member_keyboard.return_value = TelegramAdapter.get_member_keyboard()
     service = FeedbackService(
         user_repo=user_repo,
         feedback_repo=feedback_repo,
@@ -103,7 +106,12 @@ def test_pickup_flow_user_says_no_retry():
         scheduled_for=expected_next,
         pickup_attempts=1,
     )
-    telegram.send_message.assert_called_once_with("555", NO_TEXT, parse_mode=None)
+    telegram.send_message.assert_called_once_with(
+        "555",
+        NO_TEXT,
+        reply_markup=TelegramAdapter.get_member_keyboard(),
+        parse_mode=None,
+    )
 
 
 def test_pickup_flow_max_retries_reached():
@@ -130,7 +138,12 @@ def test_pickup_flow_max_retries_reached():
     assert update_kwargs["status"] == FeedbackStatus.CANCELLED
     assert update_kwargs["pickup_attempts"] == 3
     assert "scheduled_for" not in update_kwargs
-    telegram.send_message.assert_called_once_with("999", NO_TEXT, parse_mode=None)
+    telegram.send_message.assert_called_once_with(
+        "999",
+        NO_TEXT,
+        reply_markup=TelegramAdapter.get_member_keyboard(),
+        parse_mode=None,
+    )
 
 
 def test_rating_high_score_google_maps():
@@ -153,16 +166,23 @@ def test_rating_high_score_google_maps():
     service.handle_rating("777", 5)
 
     # Assert
-    args, kwargs = telegram.send_message.call_args
-    assert args[0] == "777"
-    assert "Google Maps" in args[1]
-    assert kwargs["reply_markup"]["inline_keyboard"][0][0]["url"] == maps_url
+    calls = telegram.send_message.call_args_list
+    assert any(
+        call.args[0] == "777"
+        and "Google Maps" in call.args[1]
+        and call.kwargs["reply_markup"]["inline_keyboard"][0][0]["url"] == maps_url
+        for call in calls
+    )
+    assert any(
+        call.args[0] == "777" and "Дякуємо" in call.args[1] and "💰 Ціни" in str(call.kwargs.get("reply_markup", {}))
+        for call in calls
+    )
 
 
 def test_rating_low_score_admin_alert():
     # Arrange
     service, user_repo, feedback_repo, telegram = make_service(admin_ids={"42"})
-    user = UserDTO(phone_number="+380000000000", name="Test", telegram_id="888", id=5)
+    user = UserDTO(phone_number="+380501234567", name="Test", telegram_id="888", id=5)
     task = FeedbackTaskDTO(
         id=14,
         user_id=5,
@@ -179,5 +199,67 @@ def test_rating_low_score_admin_alert():
 
     # Assert
     calls = telegram.send_message.call_args_list
-    assert any(call.args[0] == "888" and "Нам прикро" in call.args[1] for call in calls)
-    assert any(call.args[0] == "42" and "🚨 Negative Feedback" in call.args[1] for call in calls)
+    assert any(
+        call.args[0] == "888"
+        and "Нам дуже прикро" in call.args[1]
+        and "💰 Ціни" in str(call.kwargs.get("reply_markup", {}))
+        for call in calls
+    )
+    assert any(
+        call.args[0] == "42" and "+380501234567" in call.args[1] and "ALARM: Negative Feedback" in call.args[1]
+        for call in calls
+    )
+
+
+def test_rating_menu_restored_positive():
+    # Arrange
+    service, user_repo, feedback_repo, telegram = make_service()
+    user = UserDTO(phone_number="+380501234567", name="Test", telegram_id="111", id=6)
+    task = FeedbackTaskDTO(
+        id=15,
+        user_id=6,
+        created_at=datetime(2026, 2, 1, 10, 0, 0),
+        scheduled_for=datetime(2026, 2, 2, 10, 0, 0),
+        status=FeedbackStatus.COMPLETED,
+        pickup_attempts=0,
+    )
+    user_repo.get_user_by_id.return_value = user
+    feedback_repo.get_latest_task_for_user.return_value = task
+
+    # Act
+    service.handle_rating("111", 5)
+
+    # Assert
+    calls = telegram.send_message.call_args_list
+    assert any(
+        call.args[0] == "111" and "Дякуємо" in call.args[1] and "💰 Ціни" in str(call.kwargs.get("reply_markup", {}))
+        for call in calls
+    )
+
+
+def test_rating_menu_restored_negative():
+    # Arrange
+    service, user_repo, feedback_repo, telegram = make_service(admin_ids={"99"})
+    user = UserDTO(phone_number="+380501234567", name="Test", telegram_id="222", id=7)
+    task = FeedbackTaskDTO(
+        id=16,
+        user_id=7,
+        created_at=datetime(2026, 2, 1, 10, 0, 0),
+        scheduled_for=datetime(2026, 2, 2, 10, 0, 0),
+        status=FeedbackStatus.COMPLETED,
+        pickup_attempts=0,
+    )
+    user_repo.get_user_by_id.return_value = user
+    feedback_repo.get_latest_task_for_user.return_value = task
+
+    # Act
+    service.handle_rating("222", 1)
+
+    # Assert
+    calls = telegram.send_message.call_args_list
+    assert any(
+        call.args[0] == "222"
+        and "Нам дуже прикро" in call.args[1]
+        and "💰 Ціни" in str(call.kwargs.get("reply_markup", {}))
+        for call in calls
+    )
