@@ -88,6 +88,7 @@ def handle_welcome_flow(user_id: int | str):
     user = repo.get_user(str(user_id))
     if user:
         name = user.name or "друже"
+        logger.info("✅ Welcome flow | User %s (Member) -> Showing member menu", user_id)
         telegram.send_message(
             user_id,
             f"🎉 З поверненням, {name}! Чим можемо допомогти?",
@@ -95,6 +96,7 @@ def handle_welcome_flow(user_id: int | str):
             parse_mode=None,
         )
     else:
+        logger.info("📩 Welcome flow | User %s (New) -> Requesting phone", user_id)
         telegram.send_message(
             user_id,
             "👋 Вітаємо! Щоб почати роботу, будь ласка, поділіться номером.",
@@ -127,16 +129,21 @@ def telegram_webhook():
 
         if "text" in msg:
             text = msg["text"].strip()
+            logger.info(
+                '📩 Received text from User %s | Text: "%s"', chat_id, text[:50] + ("..." if len(text) > 50 else "")
+            )
             if text in {FeedbackButtons.yes, FeedbackButtons.no}:
+                logger.info('📩 Feedback pickup response from User %s | Text: "%s"', chat_id, text)
                 feedback_service.handle_pickup_response(str(chat_id), text)
                 return Response("OK", 200)
 
             if text in {"1", "2", "3", "4", "5"}:
+                logger.info("📩 Feedback rating from User %s | Score: %s", chat_id, text)
                 feedback_service.handle_rating(str(chat_id), int(text))
                 return Response("OK", 200)
             # Handle /help
             if text in {"/help", "🆘 Допомога"}:
-                logger.info("/help received for chat_id=%s", chat_id)
+                logger.info("📩 Received /help from User %s -> Sending support info", chat_id)
                 telegram.send_message(
                     chat_id,
                     (
@@ -152,17 +159,21 @@ def telegram_webhook():
             # Handle /admin with RBAC
             if text == "/admin":
                 if str(chat_id) in ADMIN_IDS:
+                    logger.info("📩 Received /admin from User %s (Admin) -> Showing admin menu", chat_id)
                     telegram.send_admin_menu(chat_id)
                     return Response("OK", 200)
 
+                logger.info("📩 Received /admin from User %s (Non-Admin) -> Redirecting to welcome flow", chat_id)
                 telegram.send_message(chat_id, "🤔 Команда не розпізнана.")
                 return handle_welcome_flow(chat_id)
 
             # Handle admin stats button
             if text in {"📊 Статистика", "📊 Stats"}:
                 if str(chat_id) in ADMIN_IDS:
+                    logger.info("📩 Admin stats requested by User %s", chat_id)
                     admin_service.send_stats(chat_id)
                     return Response("OK", 200)
+                logger.info("📩 Non-admin stats attempt by User %s -> Redirecting", chat_id)
                 telegram.send_message(chat_id, "Повертаємо вас до головного меню 🧵")
                 telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
@@ -170,8 +181,10 @@ def telegram_webhook():
             # Handle broadcast button
             if text in {"📢 Розсилка", "📢 Broadcast"}:
                 if str(chat_id) in ADMIN_IDS:
+                    logger.info("📩 Admin broadcast requested by User %s", chat_id)
                     admin_service.send_broadcast_instructions(chat_id)
                     return Response("OK", 200)
+                logger.info("📩 Non-admin broadcast attempt by User %s -> Redirecting", chat_id)
                 telegram.send_message(chat_id, "Повертаємо вас до головного меню 🧵")
                 telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
@@ -179,22 +192,30 @@ def telegram_webhook():
             # Handle /broadcast command
             if text.startswith("/broadcast"):
                 if str(chat_id) not in ADMIN_IDS:
+                    logger.info("📩 Non-admin /broadcast attempt by User %s -> Redirecting", chat_id)
                     telegram.send_message(chat_id, "Повертаємо вас до головного меню 🛍️")
                     telegram.ask_for_phone(chat_id)
                     return Response("OK", 200)
 
                 broadcast_text = text[len("/broadcast") :].strip()
+                logger.info(
+                    '📩 Admin broadcast command by User %s | Text: "%s"',
+                    chat_id,
+                    broadcast_text[:50] + ("..." if len(broadcast_text) > 50 else ""),
+                )
                 admin_service.broadcast(chat_id, broadcast_text)
                 return Response("OK", 200)
 
             # A. Handle "Deep Link" or Start
             # Format: /start ORD-123
             if text.startswith("/start"):
+                logger.info("📩 Received /start from User %s -> Triggering welcome flow", chat_id)
                 return handle_welcome_flow(chat_id)
 
             # B. Handle portfolio / Instagram showcase
             if text in {"📸 Наші роботи", "📸 Our Work"}:
                 instagram_url = get_instagram_url()
+                logger.info("📩 Portfolio requested by User %s -> Sending Instagram link", chat_id)
                 telegram.send_message(
                     chat_id,
                     ("👀 *Подивіться наше портфоліо!*\n\n" "Ось наші останні роботи:\n" f"{instagram_url}"),
@@ -204,22 +225,26 @@ def telegram_webhook():
 
             # C. Handle Location request
             if text in {"📍 Локація", "Локація", "/location"}:
+                logger.info("📩 Location requested by User %s", chat_id)
                 location_service.send_location_details(chat_id)
                 return Response("OK", 200)
 
             # D. Handle price list
             if text in {"💰 Ціни", "💰 Prices"}:
                 prices_text = price_service.get_formatted_prices()
+                logger.info("📩 Prices requested by User %s", chat_id)
                 telegram.send_message(chat_id, prices_text, parse_mode="Markdown")
                 return Response("OK", 200)
 
             # E. Handle schedule button
             if text in {"📅 Графік", "Графік"}:
+                logger.info("📩 Schedule requested by User %s", chat_id)
                 telegram.send_message(chat_id, LOCATION_SCHEDULE_TEXT, parse_mode=None)
                 return Response("OK", 200)
 
             # F. Handle contact phone
             if text in {"📞 Контактний телефон", "Контактний телефон"}:
+                logger.info("📩 Contact phone requested by User %s", chat_id)
                 telegram.send_message(chat_id, f"📞 {LOCATION_CONTACT_PHONE}", parse_mode=None)
                 return Response("OK", 200)
 
@@ -237,6 +262,7 @@ def telegram_webhook():
 
             # Save User to DB
             repo.save_or_update_user(phone_number=phone_number, name=name, telegram_id=str(chat_id))
+            logger.info("✅ Saved user contact | User %s | Phone: %s", chat_id, phone_number)
 
             # Confirm and hide contact keyboard
             telegram.send_message(
