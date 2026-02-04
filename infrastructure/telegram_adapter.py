@@ -10,6 +10,12 @@ class TelegramAdapter:
         self.logger = logging.getLogger("TelegramAdapter")
 
     @staticmethod
+    def _truncate_text(text: str, limit: int = 50) -> str:
+        if not text:
+            return ""
+        return f"{text[:limit]}..." if len(text) > limit else text
+
+    @staticmethod
     def get_guest_keyboard() -> dict:
         return {
             "keyboard": [
@@ -68,14 +74,19 @@ class TelegramAdapter:
         if reply_markup:
             payload["reply_markup"] = reply_markup
 
+        text_snippet = self._truncate_text(text)
+        keyboard_present = "Yes" if reply_markup else "No"
+
         try:
             response = requests.post(url, json=payload, timeout=5)
             # Telegram returns HTTP 200 even when ok=false, so check both
             if not response.ok:
                 self.logger.error(
-                    "❌ Telegram sendMessage failed for %s: status=%s body=%s",
+                    '❌ Telegram sendMessage failed | chat_id=%s | status=%s | text="%s" | keyboard=%s | body=%s',
                     chat_id,
                     response.status_code,
+                    text_snippet,
+                    keyboard_present,
                     response.text,
                 )
                 if parse_mode and response.status_code == 400 and "parse" in response.text.lower():
@@ -83,38 +94,69 @@ class TelegramAdapter:
                     payload.pop("parse_mode", None)
                     retry_response = requests.post(url, json=payload, timeout=5)
                     if retry_response.ok and retry_response.json().get("ok", False):
-                        self.logger.info("✅ Sent message to %s after retry without parse_mode", chat_id)
+                        self.logger.info(
+                            '✅ Sent to %s | Text: "%s" | Keyboard: %s | Retry: Yes',
+                            chat_id,
+                            text_snippet,
+                            keyboard_present,
+                        )
                         return True
                     self.logger.error(
-                        "❌ Retry sendMessage failed for %s: status=%s body=%s",
+                        '❌ Retry sendMessage failed | chat_id=%s | status=%s | text="%s" | keyboard=%s | body=%s',
                         chat_id,
                         retry_response.status_code,
+                        text_snippet,
+                        keyboard_present,
                         retry_response.text,
                     )
                 return False
 
             body = response.json()
             if not body.get("ok", False):
-                self.logger.error("❌ Telegram API returned ok=false for %s: %s", chat_id, body)
+                self.logger.error(
+                    '❌ Telegram API ok=false | chat_id=%s | text="%s" | keyboard=%s | body=%s',
+                    chat_id,
+                    text_snippet,
+                    keyboard_present,
+                    body,
+                )
                 if parse_mode and "parse" in str(body).lower():
                     self.logger.info("Retrying sendMessage without parse_mode for chat_id=%s", chat_id)
                     payload.pop("parse_mode", None)
                     retry_response = requests.post(url, json=payload, timeout=5)
                     if retry_response.ok and retry_response.json().get("ok", False):
-                        self.logger.info("✅ Sent message to %s after retry without parse_mode", chat_id)
+                        self.logger.info(
+                            '✅ Sent to %s | Text: "%s" | Keyboard: %s | Retry: Yes',
+                            chat_id,
+                            text_snippet,
+                            keyboard_present,
+                        )
                         return True
                     self.logger.error(
-                        "❌ Retry sendMessage failed for %s: status=%s body=%s",
+                        '❌ Retry sendMessage failed | chat_id=%s | status=%s | text="%s" | keyboard=%s | body=%s',
                         chat_id,
                         retry_response.status_code,
+                        text_snippet,
+                        keyboard_present,
                         retry_response.text,
                     )
                 return False
 
-            self.logger.info(f"✅ Sent message to {chat_id}")
+            self.logger.info(
+                '✅ Sent to %s | Text: "%s" | Keyboard: %s',
+                chat_id,
+                text_snippet,
+                keyboard_present,
+            )
             return True
-        except Exception as e:
-            self.logger.error(f"❌ Failed to send Telegram message: {e}")
+        except Exception:
+            self.logger.error(
+                '❌ Failed to send Telegram message | chat_id=%s | text="%s" | keyboard=%s',
+                chat_id,
+                text_snippet,
+                keyboard_present,
+                exc_info=True,
+            )
             return False
 
     def send_location(self, chat_id: int, latitude: float, longitude: float) -> bool:
@@ -123,10 +165,10 @@ class TelegramAdapter:
             url = f"{self.api_url}/sendLocation"
             payload = {"chat_id": chat_id, "latitude": latitude, "longitude": longitude}
             requests.post(url, json=payload, timeout=5)
-            self.logger.info(f"✅ Sent location to {chat_id}")
+            self.logger.info("✅ Sent location to %s | Data: %s,%s", chat_id, latitude, longitude)
             return True
-        except Exception as e:
-            self.logger.error(f"❌ Failed to send location: {e}")
+        except Exception:
+            self.logger.error("❌ Failed to send location | chat_id=%s", chat_id, exc_info=True)
             return False
 
     def send_video(self, chat_id: int, video_url: str, caption: str | None = None) -> bool:
@@ -137,10 +179,14 @@ class TelegramAdapter:
             if caption:
                 payload["caption"] = caption
             requests.post(url, json=payload, timeout=5)
-            self.logger.info(f"✅ Sent video to {chat_id}")
+            self.logger.info(
+                '✅ Sent video to %s | Url: "%s"',
+                chat_id,
+                self._truncate_text(video_url),
+            )
             return True
-        except Exception as e:
-            self.logger.error(f"❌ Failed to send video: {e}")
+        except Exception:
+            self.logger.error("❌ Failed to send video | chat_id=%s", chat_id, exc_info=True)
             return False
 
     def ask_for_phone(self, chat_id: str):
@@ -177,6 +223,7 @@ class TelegramAdapter:
             "reply_markup": keyboard,
         }
         requests.post(url, json=payload)
+        self.logger.info('✅ Sent to %s | Text: "%s" | Keyboard: Yes', chat_id, "🔐 Адмін меню")
 
     def send_location_menu(self, chat_id: str):
         """Re-opens a lightweight keyboard with the location CTA after contact sharing."""
