@@ -460,3 +460,59 @@ def test_contact_phone_button_sends_phone(client, mock_dependencies):
     if markup:
         buttons_flat = [btn for row in markup.get("keyboard", []) for btn in row]
         assert all("request_contact" not in btn for btn in buttons_flat)
+
+
+def test_concurrent_start_and_help_isolated(mock_dependencies):
+    import threading
+
+    mock_repo, mock_telegram, _, _ = mock_dependencies
+    mock_repo.get_user.return_value = None
+    mock_telegram.get_guest_keyboard.return_value = {
+        "keyboard": [[{"text": "📞 Поділитись номером", "request_contact": True}]],
+        "one_time_keyboard": True,
+        "resize_keyboard": True,
+    }
+
+    payload_start = {"message": {"chat": {"id": 111}, "text": "/start"}}
+    payload_help = {"message": {"chat": {"id": 222}, "text": "/help"}}
+
+    barrier = threading.Barrier(2)
+
+    def send(payload):
+        with app.test_client() as local_client:
+            barrier.wait()
+            local_client.post("/webhook/telegram", json=payload)
+
+    with patch("main.SUPPORT_CONTACT_USERNAME", "@SupportHero"), patch("main.LOCATION_CONTACT_PHONE", "+111 222 333"):
+        t1 = threading.Thread(target=send, args=(payload_start,))
+        t2 = threading.Thread(target=send, args=(payload_help,))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+    assert mock_telegram.send_message.call_count == 2
+
+    calls = mock_telegram.send_message.call_args_list
+
+    def has_call_for(chat_id: int, text_substring: str, require_contact_button: bool = False) -> bool:
+        for call in calls:
+            args, kwargs = call
+            if not args:
+                continue
+            if args[0] != chat_id:
+                continue
+            if text_substring not in args[1]:
+                continue
+            if require_contact_button:
+                reply_markup = kwargs.get("reply_markup")
+                if not reply_markup:
+                    continue
+                buttons_flat = [btn for row in reply_markup.get("keyboard", []) for btn in row]
+                if not any(btn.get("request_contact") for btn in buttons_flat):
+                    continue
+            return True
+        return False
+
+    assert has_call_for(111, "поділіться номером", require_contact_button=True)
+    assert has_call_for(222, "Потрібна допомога")
