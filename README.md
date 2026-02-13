@@ -127,7 +127,7 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 - Editing prices: update the text in services/price_data.py; no code changes needed.
 
 ### 5. AI Cost Estimator (Gemini)
-- Buttons: "🪄 AI Оцінка вартості" (clients) and "🧮 AI Калькулятор собівартості" (admins).
+- Buttons: "🪄 AI Оцінка вартості" (clients) and "🧮 AI Калькулятор вартості" (admins).
 - Behavior: asks the user to describe the task, estimates time via Gemini, then calculates a minimum viable price.
 - Client view: friendly approximate price message.
 - Admin view: detailed cost breakdown (labor, overhead/depreciation, materials, tax).
