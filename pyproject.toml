@@ -4,6 +4,8 @@ version = "1.0.0"
 description = "Transactional notification bot for Telegram"
 authors = ["Ihor Senkiv"]
 
+package-mode = false
+
 [tool.poetry.dependencies]
 python = "^3.11"
 flask = "^3.0"
@@ -12,6 +14,7 @@ sqlalchemy = "^2.0"
 psycopg2-binary = "^2.9"
 pre-commit = "^4.0.1"
 gunicorn = "^21.2"
+google-genai = "^0.6.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"

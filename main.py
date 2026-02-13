@@ -11,10 +11,12 @@ from infrastructure.repositories import SqlAlchemyFeedbackTaskRepository, SqlAlc
 from infrastructure.telegram_adapter import TelegramAdapter
 
 from services.admin import AdminService
+from services.ai_service import AIService
 from services.feedback import FeedbackButtons, FeedbackService
 from services.location import LocationService
 from services.notifier import NotificationService
 from services.price_service import PriceService
+from services.pricing_model import CONSUMABLES_FEE, DEPRECIATION_FEE, TAX_RATE, calculate_min_price
 
 # Setup
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +31,10 @@ DEFAULT_INSTAGRAM_URL = "https://instagram.com/your-portfolio"
 _INSTAGRAM_WARNING_EMITTED = False
 MAPS_URL = os.getenv("MAPS_URL")
 CRON_SECRET = os.getenv("CRON_SECRET", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+WAITING_FOR_AI_PROMPT = "WAITING_FOR_AI_PROMPT"
+USER_STATES: dict[str, str] = {}
 
 
 def require_env(name: str) -> str:
@@ -82,6 +88,14 @@ location_info = LocationInfo(
 location_service = LocationService(telegram, location_info)
 price_service = PriceService()
 feedback_service = FeedbackService(repo, feedback_repo, telegram, admin_ids=ADMIN_IDS, maps_url=MAPS_URL)
+_AI_SERVICE: AIService | None = None
+
+
+def get_ai_service() -> AIService:
+    global _AI_SERVICE
+    if _AI_SERVICE is None:
+        _AI_SERVICE = AIService(GEMINI_API_KEY)
+    return _AI_SERVICE
 
 
 def handle_welcome_flow(user_id: int | str):
@@ -115,6 +129,15 @@ def get_admin_service() -> AdminService:
     return AdminService(repo, telegram)
 
 
+def get_main_menu_markup(chat_id: int) -> dict:
+    if str(chat_id) in ADMIN_IDS:
+        return telegram.get_admin_keyboard()
+    user = repo.get_user(str(chat_id))
+    if user:
+        return telegram.get_member_keyboard()
+    return telegram.get_guest_keyboard()
+
+
 # ==========================
 #  TELEGRAM WEBHOOK
 # ==========================
@@ -132,6 +155,44 @@ def telegram_webhook():
             logger.info(
                 '📩 Received text from User %s | Text: "%s"', chat_id, text[:50] + ("..." if len(text) > 50 else "")
             )
+            if USER_STATES.get(str(chat_id)) == WAITING_FOR_AI_PROMPT:
+                USER_STATES.pop(str(chat_id), None)
+                telegram.send_message(chat_id, "⏳ Аналізую запит...", parse_mode=None)
+                ai_result = get_ai_service().analyze_tailoring_task(text)
+                estimated_minutes = int(ai_result.get("estimated_minutes", 60))
+                task_summary = str(ai_result.get("task_summary") or "").strip() or "Опис не надано"
+                pricing = calculate_min_price(estimated_minutes)
+                is_admin = str(chat_id) in ADMIN_IDS
+                if is_admin:
+                    depreciation_fee = int(round(DEPRECIATION_FEE))
+                    consumables_fee = int(round(CONSUMABLES_FEE))
+                    tax_percent = int(round(TAX_RATE * 100))
+                    response_text = (
+                        "🧮 **AI Калькулятор собівартості:**\n"
+                        f"Завдання: *{task_summary}*\n"
+                        f"Оцінений час: **{estimated_minutes} хв**\n\n"
+                        "💰 **Собівартість:**\n"
+                        f"- Робота (час): {pricing['labor']} грн\n"
+                        f"- Амортизація та комунальні: {pricing['overhead'] + depreciation_fee} грн\n"
+                        f"- Матеріали: {consumables_fee} грн\n"
+                        f"- Податок ({tax_percent}%): {pricing['tax']} грн\n\n"
+                        f"🏆 **Мінімальна ціна для клієнта: {pricing['final_price']} грн**"
+                    )
+                else:
+                    response_text = (
+                        "🪄 **Попередня оцінка AI:**\n"
+                        f"Завдання: *{task_summary}*\n"
+                        f"Орієнтовна вартість: **~{pricing['final_price']} грн**\n\n"
+                        "⚠️ *Зверніть увагу: це приблизна оцінка штучного інтелекту. "
+                        "Остаточна ціна визначається майстром після огляду речі.*"
+                    )
+                telegram.send_message(
+                    chat_id,
+                    response_text,
+                    reply_markup=get_main_menu_markup(chat_id),
+                    parse_mode="Markdown",
+                )
+                return Response("OK", 200)
             if text in {FeedbackButtons.yes, FeedbackButtons.no}:
                 logger.info('📩 Feedback pickup response from User %s | Text: "%s"', chat_id, text)
                 feedback_service.handle_pickup_response(str(chat_id), text)
@@ -234,6 +295,41 @@ def telegram_webhook():
                 prices_text = price_service.get_formatted_prices()
                 logger.info("📩 Prices requested by User %s", chat_id)
                 telegram.send_message(chat_id, prices_text, parse_mode="Markdown")
+                return Response("OK", 200)
+
+            # D2. Handle AI estimator (client)
+            if text == "🪄 AI Оцінка вартості":
+                logger.info("📩 AI estimator requested by User %s", chat_id)
+                USER_STATES[str(chat_id)] = WAITING_FOR_AI_PROMPT
+                telegram.send_message(
+                    chat_id,
+                    (
+                        "🧵 Опишіть своїми словами, що потрібно зробити? "
+                        "(Наприклад: 'Треба вкоротити джинси, але зберегти оригінальний шов' "
+                        "або 'Замінити блискавку на зимовій куртці')."
+                    ),
+                    parse_mode=None,
+                )
+                return Response("OK", 200)
+
+            # D3. Handle AI cost calculator (admin)
+            if text == "🧮 AI Калькулятор собівартості":
+                if str(chat_id) in ADMIN_IDS:
+                    logger.info("📩 AI cost calculator requested by Admin %s", chat_id)
+                    USER_STATES[str(chat_id)] = WAITING_FOR_AI_PROMPT
+                    telegram.send_message(
+                        chat_id,
+                        (
+                            "🧵 Опишіть своїми словами, що потрібно зробити? "
+                            "(Наприклад: 'Треба вкоротити джинси, але зберегти оригінальний шов' "
+                            "або 'Замінити блискавку на зимовій куртці')."
+                        ),
+                        parse_mode=None,
+                    )
+                    return Response("OK", 200)
+                logger.info("📩 Non-admin AI cost calculator attempt by User %s", chat_id)
+                telegram.send_message(chat_id, "Повертаємо вас до головного меню 🧵")
+                telegram.ask_for_phone(chat_id)
                 return Response("OK", 200)
 
             # E. Handle schedule button
