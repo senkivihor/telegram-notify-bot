@@ -9,6 +9,7 @@ A production-grade, secure notification service for sending transactional update
 - 🏗️ Hexagonal Architecture keeps business logic decoupled and testable.
 - 🖼️ Portfolio CTA: inline "Open Instagram" button plus reply-keyboard entry to showcase your work.
 - 💰 Price list button: Markdown-formatted services menu loaded from services/price_data.py for easy edits.
+- 🪄 AI cost estimator: Gemini-powered time estimation with role-based pricing output for clients and admins.
 - 🧭 Smart welcome flow: returning users get the main menu immediately; non-admin `/admin` calls are rerouted back to the main menu with a friendly hint.
 - 🗓️ Delayed feedback loop (NPS): automatically checks pickup status 2 business days after “Order Ready” and collects ratings.
 - 🔐 Protected cron endpoint + GitHub Actions scheduler for feedback processing.
@@ -75,6 +76,10 @@ MAPS_URL=https://search.google.com/local/writereview?placeid=your_business_id
 # Cron secret for protected feedback processing endpoint
 CRON_SECRET=change_me_super_secret
 
+# 8. AI estimator (optional)
+# Gemini API key for AI cost estimation buttons
+GEMINI_API_KEY=your_gemini_api_key
+
 ```
 
 ### 3. Run with Docker
@@ -121,10 +126,17 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
 - Behavior: sends the Markdown-rendered text from services/price_data.py through PriceService.
 - Editing prices: update the text in services/price_data.py; no code changes needed.
 
-### 5. Location, Schedule, Contact
+### 5. AI Cost Estimator (Gemini)
+- Buttons: "🪄 AI Оцінка вартості" (clients) and "🧮 AI Калькулятор собівартості" (admins).
+- Behavior: asks the user to describe the task, estimates time via Gemini, then calculates a minimum viable price.
+- Client view: friendly approximate price message.
+- Admin view: detailed cost breakdown (labor, overhead/depreciation, materials, tax).
+- Requires `GEMINI_API_KEY` in .env.
+
+### 6. Location, Schedule, Contact
 - Buttons: "📍 Локація" sends map + video; "📅 Графік" sends the schedule text; "📞 Контактний телефон" sends the call number.
 
-### 3. Admin Access (RBAC)
+### 7. Admin Access (RBAC)
 - Configure `ADMIN_IDS` with a comma-separated list of Telegram chat IDs of admins/owners.
 - Behavior: when an admin sends `/start`, the bot shows a distinct admin keyboard (e.g., "📊 Статистика", "📢 Розсилка").
 - Regular users never see or learn about the admin menu; they get the standard onboarding flow instead. Non-admin `/admin` calls show a brief "Команда не розпізнана" then return the user to the smart welcome menu.
@@ -133,7 +145,7 @@ curl "https://api.telegram.org/bot<YOUR_TOKEN>/setWebhook?url=https://<YOUR_DOMA
   - "📢 Розсилка": shows safe broadcast instructions.
   - `/broadcast <text>` (admins only): sends `<text>` to all users and reports successes/failures.
 
-### 4. Triggering Notifications (API)
+### 8. Triggering Notifications (API)
 - Endpoint: POST /trigger-notification
 - Headers:
   - Content-Type: application/json
@@ -162,7 +174,7 @@ Responses:
 - 200 OK: {"status": "Failed: User not found"} (user has not started the bot)
 - 403 Forbidden: invalid API key
 
-### 5. Feedback Loop (Post-Service NPS)
+### 9. Feedback Loop (Post-Service NPS)
 The feedback flow starts **2 business days** after the “Order Ready” notification is sent. If the scheduled time falls on Saturday/Sunday, it shifts to **Monday 10:00**.
 
 **Flow:**
@@ -179,7 +191,7 @@ GET /tasks/check-feedback?token=<CRON_SECRET>
 
 Returns JSON: {"processed": <count>}
 
-### 6. Scheduler (GitHub Actions)
+### 10. Scheduler (GitHub Actions)
 A workflow runs every hour and calls the protected endpoint:
 
 ```

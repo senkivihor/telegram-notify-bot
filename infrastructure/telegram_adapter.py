@@ -27,14 +27,17 @@ class TelegramAdapter:
                 ],
                 [
                     {"text": "💰 Ціни"},
+                    {"text": "🪄 AI Оцінка вартості"},
+                ],
+                [
                     {"text": "📸 Наші роботи"},
-                ],
-                [
                     {"text": "📍 Локація"},
-                    {"text": "📅 Графік"},
                 ],
                 [
+                    {"text": "📅 Графік"},
                     {"text": "📞 Контактний телефон"},
+                ],
+                [
                     {"text": "🆘 Допомога"},
                 ],
             ],
@@ -48,14 +51,17 @@ class TelegramAdapter:
             "keyboard": [
                 [
                     {"text": "💰 Ціни"},
+                    {"text": "🪄 AI Оцінка вартості"},
+                ],
+                [
                     {"text": "📸 Наші роботи"},
-                ],
-                [
                     {"text": "📍 Локація"},
-                    {"text": "📅 Графік"},
                 ],
                 [
+                    {"text": "📅 Графік"},
                     {"text": "📞 Контактний телефон"},
+                ],
+                [
                     {"text": "🆘 Допомога"},
                 ],
             ],
@@ -201,11 +207,27 @@ class TelegramAdapter:
     def send_admin_menu(self, chat_id: str):
         """Sends the admin-only reply keyboard with privileged options."""
         url = f"{self.api_url}/sendMessage"
-        keyboard = {
+        keyboard = self.get_admin_keyboard()
+        payload = {
+            "chat_id": chat_id,
+            "text": "🔐 Адмін меню",
+            "reply_markup": keyboard,
+        }
+        requests.post(url, json=payload)
+        self.logger.info('✅ Sent to %s | Text: "%s" | Keyboard: Yes', chat_id, "🔐 Адмін меню")
+
+    @staticmethod
+    def get_admin_keyboard() -> dict:
+        return {
             "keyboard": [
                 [
                     {
                         "text": "📊 Статистика",
+                    }
+                ],
+                [
+                    {
+                        "text": "🧮 AI Калькулятор собівартості",
                     }
                 ],
                 [
@@ -217,13 +239,6 @@ class TelegramAdapter:
             "one_time_keyboard": False,
             "resize_keyboard": True,
         }
-        payload = {
-            "chat_id": chat_id,
-            "text": "🔐 Адмін меню",
-            "reply_markup": keyboard,
-        }
-        requests.post(url, json=payload)
-        self.logger.info('✅ Sent to %s | Text: "%s" | Keyboard: Yes', chat_id, "🔐 Адмін меню")
 
     def send_location_menu(self, chat_id: str):
         """Re-opens a lightweight keyboard with the location CTA after contact sharing."""
