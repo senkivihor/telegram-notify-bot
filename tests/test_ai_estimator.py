@@ -73,7 +73,7 @@ def test_ai_estimator_admin_response(client, mock_dependencies):
             '{"task_summary": "test", "estimated_minutes": 45}'
         )
 
-        payload_button = {"message": {"chat": {"id": 202}, "text": "🧮 AI Калькулятор собівартості"}}
+        payload_button = {"message": {"chat": {"id": 202}, "text": "🧮 AI Калькулятор вартості"}}
         response = client.post("/webhook/telegram", json=payload_button)
         assert response.status_code == 200
 
@@ -83,6 +83,6 @@ def test_ai_estimator_admin_response(client, mock_dependencies):
     assert response.status_code == 200
     assert mock_telegram.send_message.call_count >= 2
     final_text = mock_telegram.send_message.call_args_list[-1][0][1]
-    assert "AI Калькулятор собівартості" in final_text
-    assert "Собівартість" in final_text
+    assert "AI Калькулятор вартості" in final_text
+    assert "Вартість" in final_text
     assert "Мінімальна ціна" in final_text

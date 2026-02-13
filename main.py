@@ -43,7 +43,7 @@ MAIN_MENU_BUTTONS = {
     "💰 Ціни",
     "💰 Prices",
     "🪄 AI Оцінка вартості",
-    "🧮 AI Калькулятор собівартості",
+    "🧮 AI Калькулятор вартості",
     "📸 Наші роботи",
     "📸 Our Work",
     "📍 Локація",
@@ -199,10 +199,10 @@ def telegram_webhook():
                         consumables_fee = int(round(CONSUMABLES_FEE))
                         tax_percent = int(round(TAX_RATE * 100))
                         response_text = (
-                            "🧮 **AI Калькулятор собівартості:**\n"
+                            "🧮 **AI Калькулятор вартості:**\n"
                             f"Завдання: *{task_summary}*\n"
                             f"Оцінений час: **{estimated_minutes} хв**\n\n"
-                            "💰 **Собівартість:**\n"
+                            "💰 **Вартість:**\n"
                             f"- Робота (час): {pricing['labor']} грн\n"
                             f"- Амортизація та комунальні: {pricing['overhead'] + depreciation_fee} грн\n"
                             f"- Матеріали: {consumables_fee} грн\n"
@@ -344,7 +344,7 @@ def telegram_webhook():
                 return Response("OK", 200)
 
             # D3. Handle AI cost calculator (admin)
-            if text == "🧮 AI Калькулятор собівартості":
+            if text == "🧮 AI Калькулятор вартості":
                 if str(chat_id) in ADMIN_IDS:
                     logger.info("📩 AI cost calculator requested by Admin %s", chat_id)
                     USER_STATES[str(chat_id)] = WAITING_FOR_AI_PROMPT
