@@ -8,8 +8,20 @@ import os
 from typing import Any, Dict
 
 from google import genai
-from google.api_core import exceptions as google_exceptions
 from google.genai import types
+
+try:
+    from google.api_core import exceptions as google_exceptions
+except ImportError:  # Fallback for environments without google.api_core installed.
+
+    class _GoogleExceptionsFallback:
+        class GoogleAPIError(Exception):
+            pass
+
+        class NotFound(GoogleAPIError):
+            pass
+
+    google_exceptions = _GoogleExceptionsFallback()
 
 SYSTEM_PROMPT_TEMPLATE = (
     "You are an expert master tailor. A client will describe a sewing or custom tailoring task.\n"
