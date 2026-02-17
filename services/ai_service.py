@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 from typing import Any, Dict
 
 from google import genai
@@ -51,6 +52,15 @@ def _strip_code_fences(text: str) -> str:
         return ""
     cleaned = text.replace("```json", "").replace("```", "")
     return cleaned.strip()
+
+
+def _parse_json_response(raw_text: str) -> Dict[str, Any]:
+    cleaned = _strip_code_fences(raw_text)
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if match:
+        return json.loads(match.group(0))
+    logger.warning("No JSON braces found in: %s", cleaned)
+    return json.loads(cleaned)
 
 
 def _format_baseline_times() -> str:
@@ -102,14 +112,13 @@ class AIService:
                 response_mime_type="application/json",
             )
             response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-1.5-flash",
                 contents=user_text,
                 config=config,
             )
             raw_text = (response.text or "").strip()
             logger.info("Raw Gemini Output: %s", raw_text)
-            raw = _strip_code_fences(raw_text)
-            payload = json.loads(raw)
+            payload = _parse_json_response(raw_text)
             if not isinstance(payload, dict):
                 raise ValueError("Invalid payload")
             summary = str(payload.get("task_summary") or "").strip() or FALLBACK_SUMMARY
@@ -131,14 +140,13 @@ class AIService:
                     response_mime_type="application/json",
                 )
                 response = self.client.models.generate_content(
-                    model="gemini-2.5-flash",
+                    model="gemini-1.5-flash",
                     contents=user_text,
                     config=fallback_config,
                 )
                 raw_text = (response.text or "").strip()
                 logger.info("Raw Gemini Output (Fallback): %s", raw_text)
-                raw = _strip_code_fences(raw_text)
-                payload = json.loads(raw)
+                payload = _parse_json_response(raw_text)
                 if not isinstance(payload, dict):
                     raise ValueError("Invalid payload")
                 summary = str(payload.get("task_summary") or "").strip() or FALLBACK_SUMMARY
