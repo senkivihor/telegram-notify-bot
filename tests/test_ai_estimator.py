@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from core.models import UserDTO
 
@@ -51,6 +51,11 @@ def test_ai_estimator_client_response(client, mock_dependencies):
         payload_prompt = {"message": {"chat": {"id": 101}, "text": "test"}}
         response = client.post("/webhook/telegram", json=payload_prompt)
 
+    mock_client.models.generate_content.assert_any_call(
+        model="gemini-1.5-flash",
+        contents=ANY,
+    )
+
     assert response.status_code == 200
     assert mock_telegram.send_message.call_count >= 2
     final_text = mock_telegram.send_message.call_args_list[-1][0][1]
@@ -79,6 +84,11 @@ def test_ai_estimator_admin_response(client, mock_dependencies):
 
         payload_prompt = {"message": {"chat": {"id": 202}, "text": "test"}}
         response = client.post("/webhook/telegram", json=payload_prompt)
+
+    mock_client.models.generate_content.assert_any_call(
+        model="gemini-1.5-flash",
+        contents=ANY,
+    )
 
     assert response.status_code == 200
     assert mock_telegram.send_message.call_count >= 2
