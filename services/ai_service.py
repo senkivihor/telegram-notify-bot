@@ -29,6 +29,17 @@ SYSTEM_PROMPT_TEMPLATE = (
     "A client will describe a task in Ukrainian.\n\n"
     "REFERENCE BASELINE TIMES (Use these as your anchor):\n"
     "{baseline_times}\n\n"
+    "LOGIC RULES (Strict Priority):\n"
+    "1. Adjectives Matter: If the user describes the item as 'Simple' (Проста), 'Basic' (Базова), or 'Light', you MUST choose the lower time estimate (e.g., make_dress_simple), even if the item is an 'Evening Dress' or 'Coat'.\n"  # noqa: E501
+    "2. Keywords:\n"
+    "   - 'Simple', 'Basic', 'Summer' -> Lean towards _simple or lower range.\n"
+    "   - 'Complex', 'Evening' (without 'simple'), 'Wedding', 'Lined' -> Lean towards _complex.\n"
+    "3. Ambiguity: If the user creates a conflict (e.g., 'Simple Wedding Dress'), assume the simpler option (lower time) but maybe add 20% to the base, do NOT jump to the max complexity.\n\n"  # noqa: E501
+    "ONE-SHOT EXAMPLES (Training):\n"
+    "- User: 'Simple evening dress' -> Match: make_dress_simple (480 min).\n"
+    "- User: 'Evening dress' -> Match: make_dress_complex (1200 min).\n"
+    "- User: 'Wedding dress' -> Match: make_dress_wedding (4800 min).\n"
+    "- User: 'Simple wedding dress' -> Match: make_dress_simple * 2.0 (Custom Logic) OR custom_tailoring_general.\n\n"
     "INSTRUCTIONS:\n"
     "1. Analyze the user's request.\n"
     "2. Compare it to the Reference Baselines above to find the closest match.\n"
