@@ -41,7 +41,7 @@ def test_ai_estimator_client_response(client, mock_dependencies):
     ):
         mock_client = mock_client_cls.return_value
         mock_client.models.generate_content.return_value = FakeResponse(
-            '{"task_summary": "test", "estimated_minutes": 45}'
+            'Here is the JSON: {"task_summary": "test", "estimated_minutes": 45}'
         )
 
         payload_button = {"message": {"chat": {"id": 101}, "text": "🪄 AI Оцінка вартості"}}
@@ -52,7 +52,7 @@ def test_ai_estimator_client_response(client, mock_dependencies):
         response = client.post("/webhook/telegram", json=payload_prompt)
 
     mock_client.models.generate_content.assert_any_call(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         contents=ANY,
         config=ANY,
     )
@@ -76,7 +76,7 @@ def test_ai_estimator_admin_response(client, mock_dependencies):
     ):
         mock_client = mock_client_cls.return_value
         mock_client.models.generate_content.return_value = FakeResponse(
-            '{"task_summary": "test", "estimated_minutes": 45}'
+            'Here is the JSON: {"task_summary": "test", "estimated_minutes": 45}'
         )
 
         payload_button = {"message": {"chat": {"id": 202}, "text": "🧮 AI Калькулятор вартості"}}
@@ -87,7 +87,7 @@ def test_ai_estimator_admin_response(client, mock_dependencies):
         response = client.post("/webhook/telegram", json=payload_prompt)
 
     mock_client.models.generate_content.assert_any_call(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         contents=ANY,
         config=ANY,
     )
