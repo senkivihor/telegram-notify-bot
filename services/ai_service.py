@@ -58,8 +58,13 @@ def _parse_json_response(raw_text: str) -> Dict[str, Any]:
     cleaned = _strip_code_fences(raw_text)
     match = re.search(r"\{.*\}", cleaned, re.DOTALL)
     if match:
-        return json.loads(match.group(0))
-    logger.warning("No JSON braces found in: %s", cleaned)
+        json_str = match.group(0)
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            logger.error("Regex found JSON but parse failed: %s", json_str)
+            return json.loads(cleaned)
+    logger.warning("No JSON braces found via Regex. Attempting raw parse.")
     return json.loads(cleaned)
 
 
@@ -104,15 +109,12 @@ class AIService:
         raw_text = ""
         try:
             config = types.GenerateContentConfig(
-                system_instruction=self.system_prompt,
-                temperature=0.2,  # Low temperature ensures the AI picks the most likely baseline time and doesn't hallucinate random numbers. # noqa: E501
-                top_p=0.8,
-                top_k=40,
-                max_output_tokens=100,
+                temperature=0.1,
                 response_mime_type="application/json",
+                system_instruction=self.system_prompt,
             )
             response = self.client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-2.5-flash",
                 contents=user_text,
                 config=config,
             )
@@ -132,15 +134,12 @@ class AIService:
             )
             try:
                 fallback_config = types.GenerateContentConfig(
-                    system_instruction=self.system_prompt,
-                    temperature=0.2,  # Low temperature ensures the AI picks the most likely baseline time and doesn't hallucinate random numbers. # noqa: E501
-                    top_p=0.8,
-                    top_k=40,
-                    max_output_tokens=100,
+                    temperature=0.1,
                     response_mime_type="application/json",
+                    system_instruction=self.system_prompt,
                 )
                 response = self.client.models.generate_content(
-                    model="gemini-1.5-flash",
+                    model="gemini-2.5-flash",
                     contents=user_text,
                     config=fallback_config,
                 )
