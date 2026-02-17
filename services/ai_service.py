@@ -4,26 +4,33 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any, Dict
 
 from google import genai
 from google.api_core import exceptions as google_exceptions
 from google.genai import types
 
-SYSTEM_PROMPT = (
-    "You are an expert master tailor. A client will describe a sewing or custom tailoring task. "
-    "Estimate the REALISTIC ACTIVE WORK TIME (Billable Minutes) needed to complete this task. "
-    "Include time for drafting patterns, cutting, sewing, and client fittings. "
-    "Do NOT include 'waiting' time (e.g., waiting for fabric)."
-    "Examples for guidance:"
-    "- Hemming jeans: 30 min"
-    "- Simple dress (scratch): ~960 min (16 hours)"
-    "- Complex/Evening dress: ~2400-4800 min"
-    "- Wedding dress: ~9600 min"
-    "Estimate time in minutes. Reply ONLY in raw JSON: "
-    '{"task_summary": "string", "estimated_minutes": int}. NO Markdown. '
-    "If the request is a joke or not about tailoring (e.g., 'do nothing', 'prices'), "
-    'return: {"task_summary": "Некоректний запит", "estimated_minutes": 0}.'
+SYSTEM_PROMPT_TEMPLATE = (
+    "You are an expert master tailor. A client will describe a sewing or custom tailoring task.\n"
+    "Estimate the REALISTIC ACTIVE WORK TIME (Billable Minutes) needed to complete this task.\n"
+    "Include time for drafting patterns, cutting, sewing, and client fittings.\n"
+    "Do NOT include 'waiting' time (e.g., waiting for fabric).\n\n"
+    "Examples for guidance:\n"
+    "- Hemming jeans: 30 min\n"
+    "- Simple dress (scratch): ~960 min (16 hours)\n"
+    "- Complex/Evening dress: ~2400-4800 min\n"
+    "- Wedding dress: ~9600 min\n\n"
+    "A client will describe a task in Ukrainian.\n\n"
+    "REFERENCE BASELINE TIMES (Use these as your anchor):\n"
+    "{baseline_times}\n\n"
+    "INSTRUCTIONS:\n"
+    "1. Analyze the user's request.\n"
+    "2. Compare it to the Reference Baselines above to find the closest match.\n"
+    "3. Adjust the time if the user describes extra complexity (e.g., 'velvet fabric' or 'urgent').\n"
+    "4. OUTPUT: Return ONLY raw JSON (no markdown):\n"
+    '{{"task_summary": "Short description in UKRAINIAN", "estimated_minutes": integer}}\n\n'
+    "If the request is unrelated to tailoring, return minutes: 0."
 )
 
 FALLBACK_MINUTES = 60
@@ -40,11 +47,33 @@ def _strip_code_fences(text: str) -> str:
     return cleaned.strip()
 
 
+def _format_baseline_times() -> str:
+    raw = os.getenv("SERVICE_COMPLEXITY", "{}")
+    if not raw:
+        return ""
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.error("SERVICE_COMPLEXITY is not valid JSON.", exc_info=True)
+        return ""
+    if not isinstance(data, dict):
+        logger.error("SERVICE_COMPLEXITY must be a JSON object.")
+        return ""
+    lines = []
+    for key, value in data.items():
+        lines.append(f"- {key}: {value} min")
+    return "\n".join(lines)
+
+
 class AIService:
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.enabled = bool(api_key)
         self.client = None
+        self.baseline_times = _format_baseline_times()
+        self.system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+            baseline_times=self.baseline_times or "(no baselines provided)"
+        )
         if self.enabled:
             self.client = genai.Client(api_key=api_key)
 
@@ -56,7 +85,7 @@ class AIService:
             response = self.client.models.generate_content(
                 model="gemini-1.5-flash",
                 contents=user_text,
-                config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT),
+                config=types.GenerateContentConfig(system_instruction=self.system_prompt),
             )
             raw_text = (response.text or "").strip()
             logger.info("Raw Gemini Output: %s", raw_text)
