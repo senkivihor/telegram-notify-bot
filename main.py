@@ -184,10 +184,10 @@ def telegram_webhook():
                     ai_result = get_ai_service().analyze_tailoring_task(text)
                     estimated_minutes = int(ai_result.get("estimated_minutes", 60))
                     task_summary = str(ai_result.get("task_summary") or "").strip() or "Опис не надано"
-                    if estimated_minutes <= 0:
+                    if estimated_minutes == 0:
                         telegram.send_message(
                             chat_id,
-                            "⚠️ Некоректний запит. Опишіть, будь ласка, реальну швейну задачу.",
+                            "⚠️ Вибачте, штучний інтелект тимчасово недоступний або не зміг обробити запит. Спробуйте пізніше або оберіть послугу з меню.",  # noqa: E501
                             reply_markup=get_main_menu_markup(chat_id),
                             parse_mode=None,
                         )
