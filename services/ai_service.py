@@ -90,13 +90,21 @@ class AIService:
     def analyze_tailoring_task(self, user_text: str) -> Dict[str, Any]:
         if not self.enabled or not user_text or not self.client:
             return AI_UNAVAILABLE_RESULT
-        prompt: ContentType = f"{self.system_prompt}\n\n{user_text}"
         client_error = getattr(genai_errors, "ClientError", Exception)
         raw_text = ""
         try:
+            config = types.GenerateContentConfig(
+                system_instruction=self.system_prompt,
+                temperature=0.2,  # Low temperature ensures the AI picks the most likely baseline time and doesn't hallucinate random numbers. # noqa: E501
+                top_p=0.8,
+                top_k=40,
+                max_output_tokens=100,
+                response_mime_type="application/json",
+            )
             response = self.client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt,
+                model="gemini-2.5-flash",
+                contents=user_text,
+                config=config,
             )
             raw_text = (response.text or "").strip()
             logger.info("Raw Gemini Output: %s", raw_text)
@@ -114,9 +122,18 @@ class AIService:
                 exc_info=True,
             )
             try:
+                fallback_config = types.GenerateContentConfig(
+                    system_instruction=self.system_prompt,
+                    temperature=0.2,  # Low temperature ensures the AI picks the most likely baseline time and doesn't hallucinate random numbers. # noqa: E501
+                    top_p=0.8,
+                    top_k=40,
+                    max_output_tokens=100,
+                    response_mime_type="application/json",
+                )
                 response = self.client.models.generate_content(
-                    model="gemini-1.5-pro-latest",
-                    contents=prompt,
+                    model="gemini-2.5-flash",
+                    contents=user_text,
+                    config=fallback_config,
                 )
                 raw_text = (response.text or "").strip()
                 logger.info("Raw Gemini Output (Fallback): %s", raw_text)
