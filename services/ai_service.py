@@ -52,6 +52,11 @@ SYSTEM_PROMPT_TEMPLATE = (
 FALLBACK_MINUTES = 60
 FALLBACK_SUMMARY = "Стандартна робота"
 AI_UNAVAILABLE_RESULT = {"task_summary": "AI Unavailable", "estimated_minutes": 0}
+AI_DISCLAIMER = (
+    "\n\n💡 *Важливо:* Це орієнтовний розрахунок. "
+    "Точну вартість визначить майстриня при зустрічі, "
+    "врахувавши всі деталі та тканину. ✂️"
+)
 
 logger = logging.getLogger("AIService")
 
