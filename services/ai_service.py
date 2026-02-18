@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import re
 from typing import Any, Dict
@@ -143,6 +144,22 @@ def format_business_time(minutes: int) -> str:
         time_str += f" {rest_hours} год"
 
     return f"{minutes} хв (~{time_str} роб. часу)"
+
+
+def calculate_price_range(base_price: float) -> tuple[int, int]:
+    """
+    Returns a (min, max) tuple.
+    Logic: +/- 20% spread, rounded to nearest 50 UAH for clean numbers.
+    """
+    if base_price == 0:
+        return 0, 0
+
+    min_price = math.floor((base_price * 0.8) / 50) * 50
+    min_price = max(50, min_price)
+
+    max_price = math.ceil((base_price * 1.2) / 50) * 50
+
+    return int(min_price), int(max_price)
 
 
 class AIService:
