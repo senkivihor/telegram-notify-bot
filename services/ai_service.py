@@ -21,37 +21,54 @@ SYSTEM_PROMPT_TEMPLATE = (
     "Estimate the REALISTIC ACTIVE WORK TIME (Billable Minutes) needed to complete this task.\n"
     "Include time for drafting patterns, cutting, sewing, and client fittings.\n"
     "Do NOT include 'waiting' time (e.g., waiting for fabric).\n\n"
-    "Examples for guidance:\n"
-    "- Hemming jeans: 30 min\n"
-    "- Simple dress (scratch): ~960 min (16 hours)\n"
-    "- Complex/Evening dress: ~2400-4800 min\n"
-    "- Wedding dress: ~9600 min\n\n"
     "A client will describe a task in Ukrainian.\n\n"
-    "REFERENCE BASELINE TIMES (Use these as your anchor):\n"
-    "{baseline_times}\n\n"
+    "REFERENCE BASELINE TIMES (Use these as your anchors):\n"
+    "{baseline_times}\n"
+    "   - Skirt (Simple): ~240 min (4 hours)\n"
+    "   - Pants/Trousers: ~480-600 min (8-10 hours)\n"
+    "   - Coat/Jacket (Lined): ~1440-2400 min (24-40 hours)\n\n"
     "LOGIC RULES (Strict Priority):\n"
-    "1. Adjectives Matter: If the user describes the item as 'Simple' (Проста), 'Basic' (Базова), or 'Light', you MUST choose the lower time estimate (e.g., make_dress_simple), even if the item is an 'Evening Dress' or 'Coat'.\n"  # noqa: E501
-    "2. Keywords:\n"
-    "   - 'Simple', 'Basic', 'Summer' -> Lean towards _simple or lower range.\n"
-    "   - 'Complex', 'Evening' (without 'simple'), 'Wedding', 'Lined' -> Lean towards _complex.\n"
-    "3. Ambiguity: If the user creates a conflict (e.g., 'Simple Wedding Dress'), assume the simpler option (lower time) but maybe add 20% to the base, do NOT jump to the max complexity.\n\n"  # noqa: E501
+    "1. Adjectives Matter: If the user describes the item as 'Simple' (Проста), 'Basic' (Базова), or 'Light', you MUST choose the lower time estimate.\n"  # noqa: E501
+    "2. Keywords Mapping:\n"
+    "   - 'Simple', 'Basic', 'Summer' -> Lean towards _simple.\n"
+    "   - 'Complex', 'Evening', 'Wedding', 'Lined', 'Winter' -> Lean towards _complex.\n"
+    "3. Ambiguity: If the user creates a conflict, assume the simpler option but add ~20% buffer.\n\n"
+    "CONTEXT MULTIPLIERS (Apply these to the Baseline):\n"
+    "1. SIZE / SCALE:\n"
+    "   - 'Baby', 'Child', 'Kids' (Дитяче): REDUCE time by 20% (0.8x).\n"
+    "   - 'Maxi', 'Floor length' (Довга): INCREASE time by 15% (1.15x).\n"
+    "2. FABRIC / MATERIAL (The 'Flags'):\n"
+    "   - Standard (Cotton, Denim, Wool): No change.\n"
+    "   - Difficult (Silk, Chiffon, Velvet) (Шовк, Оксамит): INCREASE time by 30% (1.3x).\n"
+    "   - Extreme (Sequins, Leather, Fur) (Шкіра, Хутро): INCREASE time by 50% (1.5x).\n"
+    "3. CONSTRUCTION:\n"
+    "   - 'Lined' (На підкладці): Add 20-30% to base time (if not already a coat).\n\n"
     "ONE-SHOT EXAMPLES (Training):\n"
-    "- User: 'Simple evening dress' -> Match: make_dress_simple (480 min).\n"
-    "- User: 'Evening dress' -> Match: make_dress_complex (1200 min).\n"
-    "- User: 'Wedding dress' -> Match: make_dress_wedding (4800 min).\n"
-    "- User: 'Simple wedding dress' -> Match: make_dress_simple * 2.0 (Custom Logic) OR custom_tailoring_general.\n\n"
+    "- User: 'Simple evening dress' -> Base: make_dress_simple (480) -> Result: 480 min.\n"
+    "- User: 'Winter coat' (Зимове пальто) -> Base: make_coat_complex (~2400 min).\n"
+    "- User: 'Pencil skirt' (Спідниця олівець) -> Base: make_skirt_simple (~240-300 min).\n"
+    "- User: 'Men's suit trousers' -> Base: make_pants (~600 min).\n"
+    "- User: 'Baby dress' -> Base: make_dress_simple (480) * 0.8 (Size) -> Result: ~385 min.\n\n"
     "INSTRUCTIONS:\n"
-    "1. Analyze the user's request.\n"
-    "2. Compare it to the Reference Baselines above to find the closest match.\n"
-    "3. Adjust the time if the user describes extra complexity (e.g., 'velvet fabric' or 'urgent').\n"
+    "1. Identify the Core Task (Dress, Skirt, Coat, Repair).\n"
+    "2. Identify Modifiers (Size, Fabric, Complexity).\n"
+    "3. Calculate: Baseline * Modifiers = Final Estimate.\n"
     "4. OUTPUT: Return ONLY raw JSON (no markdown):\n"
-    '{{"task_summary": "Short description in UKRAINIAN", "estimated_minutes": integer}}\n\n'
+    "   {{"
+    '      "task_summary": "Concise description in UKRAINIAN including modifiers", '
+    '      "estimated_minutes": integer'
+    "   }}\n\n"
     "If the request is unrelated to tailoring, return minutes: 0."
 )
 
 FALLBACK_MINUTES = 60
 FALLBACK_SUMMARY = "Стандартна робота"
 AI_UNAVAILABLE_RESULT = {"task_summary": "AI Unavailable", "estimated_minutes": 0}
+AI_DISCLAIMER = (
+    "\n\n💡 *Важливо:* Це орієнтовний розрахунок. "
+    "Точну вартість визначить майстриня при зустрічі, "
+    "врахувавши всі деталі та тканину. ✂️"
+)
 
 logger = logging.getLogger("AIService")
 
@@ -98,6 +115,34 @@ def _format_baseline_times() -> str:
     for key, value in data.items():
         lines.append(f"- {key}: {value} min")
     return "\n".join(lines)
+
+
+def format_business_time(minutes: int) -> str:
+    """
+    Converts minutes into a friendly string.
+    Assumption: 1 Work Day = 8 Hours.
+    """
+    if minutes < 60:
+        return f"{minutes} хв"
+
+    hours = minutes // 60
+    remaining_mins = minutes % 60
+
+    # If it's a small task (< 8 hours), just show hours
+    if hours < 8:
+        if remaining_mins > 0:
+            return f"{minutes} хв ({hours} год {remaining_mins} хв)"
+        return f"{minutes} хв ({hours} год)"
+
+    # If it's a large task (> 8 hours), show Work Days
+    days = hours // 8
+    rest_hours = hours % 8
+
+    time_str = f"{days} дн"
+    if rest_hours > 0:
+        time_str += f" {rest_hours} год"
+
+    return f"{minutes} хв (~{time_str} роб. часу)"
 
 
 class AIService:
