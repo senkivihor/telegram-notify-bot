@@ -11,7 +11,7 @@ from infrastructure.repositories import SqlAlchemyFeedbackTaskRepository, SqlAlc
 from infrastructure.telegram_adapter import TelegramAdapter
 
 from services.admin import AdminService
-from services.ai_service import AIService, AI_DISCLAIMER
+from services.ai_service import AIService, AI_DISCLAIMER, calculate_price_range
 from services.feedback import FeedbackButtons, FeedbackService
 from services.location import LocationService
 from services.notifier import NotificationService
@@ -210,10 +210,11 @@ def telegram_webhook():
                             f"🏆 **Мінімальна ціна для клієнта: {pricing['final_price']} грн**"
                         )
                     else:
+                        min_price, max_price = calculate_price_range(pricing["final_price"])
                         response_text = (
                             "🪄 **Попередня оцінка AI:**\n"
                             f"Завдання: *{task_summary}*\n"
-                            f"Орієнтовна вартість: **~{pricing['final_price']} грн**"
+                            f"💰 Орієнтовна вартість: **від {min_price} до {max_price} грн**"
                         )
                         response_text += AI_DISCLAIMER
                     telegram.send_message(
