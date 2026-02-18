@@ -11,7 +11,7 @@ from infrastructure.repositories import SqlAlchemyFeedbackTaskRepository, SqlAlc
 from infrastructure.telegram_adapter import TelegramAdapter
 
 from services.admin import AdminService
-from services.ai_service import AIService, AI_DISCLAIMER, calculate_price_range
+from services.ai_service import AIService, AI_DISCLAIMER, calculate_price_range, format_business_time
 from services.feedback import FeedbackButtons, FeedbackService
 from services.location import LocationService
 from services.notifier import NotificationService
@@ -193,6 +193,7 @@ def telegram_webhook():
                         )
                         return Response("OK", 200)
                     pricing = calculate_min_price(estimated_minutes)
+                    readable_time = format_business_time(estimated_minutes)
                     is_admin = str(chat_id) in ADMIN_IDS
                     if is_admin:
                         depreciation_fee = int(round(DEPRECIATION_FEE))
@@ -201,7 +202,7 @@ def telegram_webhook():
                         response_text = (
                             "🧮 **AI Калькулятор вартості:**\n"
                             f"Завдання: *{task_summary}*\n"
-                            f"Оцінений час: **{estimated_minutes} хв**\n\n"
+                            f"Оцінений час: **{readable_time}**\n\n"
                             "💰 **Вартість:**\n"
                             f"- Робота (час): {pricing['labor']} грн\n"
                             f"- Амортизація та комунальні: {pricing['overhead'] + depreciation_fee} грн\n"
