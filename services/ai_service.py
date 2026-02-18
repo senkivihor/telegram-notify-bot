@@ -100,6 +100,34 @@ def _format_baseline_times() -> str:
     return "\n".join(lines)
 
 
+def format_business_time(minutes: int) -> str:
+    """
+    Converts minutes into a friendly string.
+    Assumption: 1 Work Day = 8 Hours.
+    """
+    if minutes < 60:
+        return f"{minutes} хв"
+
+    hours = minutes // 60
+    remaining_mins = minutes % 60
+
+    # If it's a small task (< 8 hours), just show hours
+    if hours < 8:
+        if remaining_mins > 0:
+            return f"{minutes} хв ({hours} год {remaining_mins} хв)"
+        return f"{minutes} хв ({hours} год)"
+
+    # If it's a large task (> 8 hours), show Work Days
+    days = hours // 8
+    rest_hours = hours % 8
+
+    time_str = f"{days} дн"
+    if rest_hours > 0:
+        time_str += f" {rest_hours} год"
+
+    return f"{minutes} хв (~{time_str} роб. часу)"
+
+
 class AIService:
     def __init__(self, api_key: str):
         self.api_key = api_key
