@@ -50,6 +50,13 @@ SYSTEM_PROMPT_TEMPLATE = (
     "- User: 'Pencil skirt' (Спідниця олівець) -> Base: make_skirt_simple (~240-300 min).\n"
     "- User: 'Men's suit trousers' -> Base: make_pants (~600 min).\n"
     "- User: 'Baby dress' -> Base: make_dress_simple (480) * 0.8 (Size) -> Result: ~385 min.\n\n"
+    "UNSUPPORTED TASKS (Strictly return estimated_minutes: 0):\n"
+    "If the user requests any of the following, the task is OUT OF SCOPE. You MUST return 0 minutes and set the task_summary to explain why (e.g., 'Послуга не надається: натуральне хутро'):\n"  # noqa: E501
+    "1. Natural fur (натуральне хутро).\n"
+    "2. Thick/heavy leather (груба або товста шкіра).\n"
+    "3. Making underwear or swimwear from scratch (пошиття нижньої білизни чи купальників з нуля).\n"
+    "4. Any work on hats, backpacks, or bags (головні убори, рюкзаки, сумки).\n"
+    "5. Altering complex knitwear that requires catching stitches, linking, or knitting extra elements (перешив в'язаних виробів, кетлювання, ловіння петель).\n\n"  # noqa: E501
     "INSTRUCTIONS:\n"
     "1. Identify the Core Task (Dress, Skirt, Coat, Repair).\n"
     "2. Identify Modifiers (Size, Fabric, Complexity).\n"

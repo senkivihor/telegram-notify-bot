@@ -10,7 +10,7 @@ from infrastructure.repositories import SqlAlchemyFeedbackTaskRepository, SqlAlc
 from infrastructure.telegram_adapter import TelegramAdapter
 
 
-CHECK_TEXT = "👋 Привітик! Просто нагадуємо, що ваше замовлення готове і чекає на зустріч з вами. ✨"
+CHECK_TEXT = "👋 Привіт! Просто нагадуємо, що ваше замовлення готове і чекає на зустріч з вами. ✨"
 NO_TEXT = "Ой, ваші речі вже сумують за вами! 🧥 Чекаємо в робочий час."
 RATING_PROMPT = "Чудово! Як вам якість нашої роботи? Оцініть, будь ласка:"
 

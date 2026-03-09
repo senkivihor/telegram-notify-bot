@@ -185,11 +185,28 @@ def telegram_webhook():
                     estimated_minutes = int(ai_result.get("estimated_minutes", 60))
                     task_summary = str(ai_result.get("task_summary") or "").strip() or "Опис не надано"
                     if estimated_minutes == 0:
+                        if task_summary == "AI Unavailable":
+                            telegram.send_message(
+                                chat_id,
+                                "⚠️ Вибачте, штучний інтелект тимчасово недоступний або не зміг обробити запит. Спробуйте пізніше або оберіть послугу з меню.",  # noqa: E501
+                                reply_markup=get_main_menu_markup(chat_id),
+                                parse_mode=None,
+                            )
+                            return Response("OK", 200)
+                        client_message = (
+                            "На жаль, ми не зможемо допомогти з цим замовленням. 😔\n\n"
+                            "Ми **не працюємо** з:\n"
+                            "• Натуральним хутром та товстою шкірою\n"
+                            "• Головними уборами, сумками та рюкзаками\n"
+                            "• Пошиттям нижньої білизни/купальників з нуля\n"
+                            "• Складним перешивом в'язаних виробів (кетлювання, ловіння петель)\n\n"
+                            "Дякуємо за розуміння! Якщо у вас є інші речі для ремонту чи пошиття — з радістю допоможемо. 🧵"  # noqa: E501
+                        )
                         telegram.send_message(
                             chat_id,
-                            "⚠️ Вибачте, штучний інтелект тимчасово недоступний або не зміг обробити запит. Спробуйте пізніше або оберіть послугу з меню.",  # noqa: E501
+                            client_message,
                             reply_markup=get_main_menu_markup(chat_id),
-                            parse_mode=None,
+                            parse_mode="Markdown",
                         )
                         return Response("OK", 200)
                     pricing = calculate_min_price(estimated_minutes)
