@@ -212,16 +212,13 @@ def telegram_webhook():
                         return Response("OK", 200)
                     pricing = calculate_min_price(estimated_minutes)
                     final_price = max(pricing["final_price"], min_list_price)
-                    is_price_overridden = min_list_price > 0 and final_price != pricing["final_price"]
                     readable_time = format_business_time(estimated_minutes)
                     is_admin = str(chat_id) in ADMIN_IDS
                     if is_admin:
                         depreciation_fee = int(round(DEPRECIATION_FEE))
                         consumables_fee = int(round(CONSUMABLES_FEE))
                         tax_percent = int(round(TAX_RATE * 100))
-                        price_list_note = (
-                            f"📌 Мінімум за прайсом: {min_list_price} грн\n" if is_price_overridden else ""
-                        )
+                        price_list_note = f"📌 Мінімум за прайсом: {min_list_price} грн\n" if min_list_price > 0 else ""
                         response_text = (
                             "🧮 **AI Калькулятор вартості:**\n"
                             f"Завдання: *{task_summary}*\n"
