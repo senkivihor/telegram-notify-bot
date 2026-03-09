@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 import pytest
@@ -21,13 +22,12 @@ class FakeResponse:
 def test_ai_service_min_list_price_parsing(raw_min_price, expected):
     with patch("services.ai_service.genai.Client") as mock_client_cls:
         mock_client = mock_client_cls.return_value
-        mock_client.models.generate_content.return_value = FakeResponse(
-            "{"
-            '"task_summary": "test", '
-            '"estimated_minutes": 60, '
-            f'"min_list_price": {"null" if raw_min_price is None else f"\"{raw_min_price}\""}'
-            "}"
-        )
+        payload = {
+            "task_summary": "test",
+            "estimated_minutes": 60,
+            "min_list_price": raw_min_price,
+        }
+        mock_client.models.generate_content.return_value = FakeResponse(json.dumps(payload))
 
         service = AIService("test-key")
         result = service.analyze_tailoring_task("test")
