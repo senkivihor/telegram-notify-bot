@@ -12,6 +12,8 @@ from typing import Any, Dict
 from google import genai
 from google.genai import types
 
+from services.price_data import PRICE_LIST_TEXT
+
 try:
     from google.genai import errors as genai_errors
 except ImportError:  # Fallback for environments without google.genai errors module.
@@ -57,21 +59,29 @@ SYSTEM_PROMPT_TEMPLATE = (
     "3. Making underwear or swimwear from scratch (пошиття нижньої білизни чи купальників з нуля).\n"
     "4. Any work on hats, backpacks, or bags (головні убори, рюкзаки, сумки).\n"
     "5. Altering complex knitwear that requires catching stitches, linking, or knitting extra elements (перешив в'язаних виробів, кетлювання, ловіння петель).\n\n"  # noqa: E501
+    "PRICE LIST (STRICT MINIMUMS):\n"
+    "{price_list}\n\n"
+    "NEW RULE: If the user's request matches an item in the PRICE LIST, you MUST extract that price and return it as 'min_list_price'. If it doesn't match anything, return 0.\n\n"  # noqa: E501
     "INSTRUCTIONS:\n"
     "1. Identify the Core Task (Dress, Skirt, Coat, Repair).\n"
     "2. Identify Modifiers (Size, Fabric, Complexity).\n"
     "3. Calculate: Baseline * Modifiers = Final Estimate.\n"
     "4. OUTPUT: Return ONLY raw JSON (no markdown):\n"
-    "   {{"
-    '      "task_summary": "Concise description in UKRAINIAN including modifiers", '
-    '      "estimated_minutes": integer'
+    "   {{\n"
+    '      "task_summary": "Concise description in UKRAINIAN including modifiers", \n'
+    '      "estimated_minutes": integer,\n'
+    '      "min_list_price": integer\n'
     "   }}\n\n"
     "If the request is unrelated to tailoring, return minutes: 0."
 )
 
 FALLBACK_MINUTES = 60
 FALLBACK_SUMMARY = "Стандартна робота"
-AI_UNAVAILABLE_RESULT = {"task_summary": "AI Unavailable", "estimated_minutes": 0}
+AI_UNAVAILABLE_RESULT = {
+    "task_summary": "AI Unavailable",
+    "estimated_minutes": 0,
+    "min_list_price": 0,
+}
 AI_DISCLAIMER = (
     "\n\n💡 *Важливо:* Це орієнтовний розрахунок. "
     "Точну вартість визначить майстриня при зустрічі, "
@@ -153,18 +163,16 @@ def format_business_time(minutes: int) -> str:
     return f"{minutes} хв (~{time_str} роб. часу)"
 
 
-def calculate_price_range(base_price: float) -> tuple[int, int]:
-    """
-    Returns a (min, max) tuple.
-    Logic: +/- 20% spread, rounded to nearest 50 UAH for clean numbers.
-    """
-    if base_price == 0:
-        return 0, 0
+def calculate_smart_price_range(calculated_price: float, min_list_price: int) -> tuple[int, int]:
+    """Returns a (min, max) tuple using price list overrides when applicable."""
+    if min_list_price > calculated_price:
+        min_price = min_list_price
+        max_price = math.ceil((min_list_price * 1.2) / 50) * 50
+        return int(min_price), int(max_price)
 
-    min_price = math.floor((base_price * 0.8) / 50) * 50
+    min_price = math.floor((calculated_price * 0.8) / 50) * 50
     min_price = max(50, min_price)
-
-    max_price = math.ceil((base_price * 1.2) / 50) * 50
+    max_price = math.ceil((calculated_price * 1.2) / 50) * 50
 
     return int(min_price), int(max_price)
 
@@ -177,7 +185,8 @@ class AIService:
         self.client = None
         self.baseline_times = _format_baseline_times()
         self.system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
-            baseline_times=self.baseline_times or "(no baselines provided)"
+            baseline_times=self.baseline_times or "(no baselines provided)",
+            price_list=PRICE_LIST_TEXT,
         )
         if self.enabled:
             self.client = genai.Client(api_key=api_key_value)
@@ -205,7 +214,16 @@ class AIService:
                 raise ValueError("Invalid payload")
             summary = str(payload.get("task_summary") or "").strip() or FALLBACK_SUMMARY
             minutes = int(payload.get("estimated_minutes"))
-            return {"task_summary": summary, "estimated_minutes": minutes}
+            raw_min_price = payload.get("min_list_price", 0)
+            try:
+                min_list_price = int(raw_min_price)
+            except (ValueError, TypeError):
+                min_list_price = 0
+            return {
+                "task_summary": summary,
+                "estimated_minutes": minutes,
+                "min_list_price": min_list_price,
+            }
         except (client_error, Exception):
             logger.error(
                 "AI Service Error. Full Raw Output: %s",
@@ -230,7 +248,16 @@ class AIService:
                     raise ValueError("Invalid payload")
                 summary = str(payload.get("task_summary") or "").strip() or FALLBACK_SUMMARY
                 minutes = int(payload.get("estimated_minutes"))
-                return {"task_summary": summary, "estimated_minutes": minutes}
+                raw_min_price = payload.get("min_list_price", 0)
+                try:
+                    min_list_price = int(raw_min_price)
+                except (ValueError, TypeError):
+                    min_list_price = 0
+                return {
+                    "task_summary": summary,
+                    "estimated_minutes": minutes,
+                    "min_list_price": min_list_price,
+                }
             except Exception:
                 logger.error(
                     "AI Service Fallback Error. Full Raw Output: %s",

@@ -11,7 +11,7 @@ from infrastructure.repositories import SqlAlchemyFeedbackTaskRepository, SqlAlc
 from infrastructure.telegram_adapter import TelegramAdapter
 
 from services.admin import AdminService
-from services.ai_service import AIService, AI_DISCLAIMER, calculate_price_range, format_business_time
+from services.ai_service import AIService, AI_DISCLAIMER, calculate_smart_price_range, format_business_time
 from services.feedback import FeedbackButtons, FeedbackService
 from services.location import LocationService
 from services.notifier import NotificationService
@@ -184,6 +184,7 @@ def telegram_webhook():
                     ai_result = get_ai_service().analyze_tailoring_task(text)
                     estimated_minutes = int(ai_result.get("estimated_minutes", 60))
                     task_summary = str(ai_result.get("task_summary") or "").strip() or "Опис не надано"
+                    min_list_price = int(ai_result.get("min_list_price") or 0)
                     if estimated_minutes == 0:
                         if task_summary == "AI Unavailable":
                             telegram.send_message(
@@ -210,12 +211,17 @@ def telegram_webhook():
                         )
                         return Response("OK", 200)
                     pricing = calculate_min_price(estimated_minutes)
+                    final_price = max(pricing["final_price"], min_list_price)
+                    is_price_overridden = min_list_price > 0 and final_price != pricing["final_price"]
                     readable_time = format_business_time(estimated_minutes)
                     is_admin = str(chat_id) in ADMIN_IDS
                     if is_admin:
                         depreciation_fee = int(round(DEPRECIATION_FEE))
                         consumables_fee = int(round(CONSUMABLES_FEE))
                         tax_percent = int(round(TAX_RATE * 100))
+                        price_list_note = (
+                            f"📌 Мінімум за прайсом: {min_list_price} грн\n" if is_price_overridden else ""
+                        )
                         response_text = (
                             "🧮 **AI Калькулятор вартості:**\n"
                             f"Завдання: *{task_summary}*\n"
@@ -225,14 +231,18 @@ def telegram_webhook():
                             f"- Амортизація та комунальні: {pricing['overhead'] + depreciation_fee} грн\n"
                             f"- Матеріали: {consumables_fee} грн\n"
                             f"- Податок ({tax_percent}%): {pricing['tax']} грн\n\n"
-                            f"🏆 **Мінімальна ціна для клієнта: {pricing['final_price']} грн**"
+                            f"{price_list_note}"
+                            f"🏆 **Мінімальна ціна для клієнта: {final_price} грн**"
                         )
                     else:
-                        min_price, max_price = calculate_price_range(pricing["final_price"])
+                        min_price, max_price = calculate_smart_price_range(
+                            pricing["final_price"],
+                            min_list_price,
+                        )
                         response_text = (
                             "🪄 **Попередня оцінка AI:**\n"
                             f"Завдання: *{task_summary}*\n"
-                            f"💰 Орієнтовна вартість: **від {min_price} до {max_price} грн**"
+                            f"💰 Орієнтовна вартість: від {min_price} до {max_price} грн"
                         )
                         response_text += AI_DISCLAIMER
                     telegram.send_message(
