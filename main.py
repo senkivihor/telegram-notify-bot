@@ -245,6 +245,10 @@ def telegram_webhook():
                             f"💰 Орієнтовна вартість: від {min_price} до {max_price} грн"
                         )
                         response_text += AI_DISCLAIMER
+                        response_text += (
+                            "\n\n🫧 *Маленьке прохання:* для найкращого результату та турботи про тканину, "
+                            "приймаємо в роботу лише чисті речі. Дякуємо! ❤️"
+                        )
                     telegram.send_message(
                         chat_id,
                         response_text,
