@@ -112,7 +112,7 @@ def test_admin_broadcast_handles_blocked_user(client, mock_dependencies):
     mock_repo, mock_telegram, _, _ = mock_dependencies
     mock_repo.get_all_user_ids.return_value = ["u1", "u2"]
 
-    def side_effect(chat_id, text, reply_markup=None):
+    def side_effect(chat_id, text, reply_markup=None, parse_mode=None):
         if chat_id in {"u1", "99", 99}:  # allow admin report (int) and first user
             return True
         raise Exception("403")
@@ -127,9 +127,33 @@ def test_admin_broadcast_handles_blocked_user(client, mock_dependencies):
     assert response.status_code == 200
     # send_message called 3 times: u1, u2, admin report
     assert mock_telegram.send_message.call_count == 3
+    first_call = mock_telegram.send_message.call_args_list[0]
+    assert first_call[0][1] == "hello"
+    assert first_call[1].get("parse_mode") == "Markdown"
     report_text = mock_telegram.send_message.call_args[0][1]
     assert "Sent to 1 users" in report_text
     assert "Failed/Blocked: 1" in report_text
+
+
+def test_admin_broadcast_converts_double_asterisks_to_markdown(client, mock_dependencies):
+    mock_repo, mock_telegram, _, _ = mock_dependencies
+    mock_repo.get_all_user_ids.return_value = ["u1"]
+    mock_telegram.send_message.return_value = True
+
+    with patch("main.ADMIN_IDS", {"99"}):
+        payload = {
+            "message": {
+                "chat": {"id": 99},
+                "text": "/broadcast 🚀 **Оновлення:** Тест",
+            }
+        }
+        response = client.post("/webhook/telegram", json=payload)
+
+    assert response.status_code == 200
+    user_call = mock_telegram.send_message.call_args_list[0]
+    assert user_call[0][0] == "u1"
+    assert user_call[0][1] == "🚀 *Оновлення:* Тест"
+    assert user_call[1].get("parse_mode") == "Markdown"
 
 
 def test_telegram_start_command_admin(client, mock_dependencies):
