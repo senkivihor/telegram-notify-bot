@@ -33,13 +33,14 @@ class AdminService:
             self.send_broadcast_instructions(chat_id)
             return
 
+        formatted_text = text.replace("**", "*")
         user_ids = self.repo.get_all_user_ids()
         success_count = 0
         fail_count = 0
 
         for user_id in user_ids:
             try:
-                sent = self.telegram.send_message(str(user_id), text)
+                sent = self.telegram.send_message(str(user_id), formatted_text, parse_mode="Markdown")
                 if sent:
                     success_count += 1
                 else:
