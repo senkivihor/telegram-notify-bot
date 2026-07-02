@@ -237,3 +237,6 @@ poetry run pytest
 - GitHub Actions runs flake8 and pytest on pushes and pull requests.
 - On push to `main`, after checks pass, a deploy is triggered via Render deploy hook.
 - Required secret: `RENDER_DEPLOY_HOOK` set in GitHub repo Actions secrets (full deploy hook URL from Render service settings).
+
+# TODO:
+# - Add new features
