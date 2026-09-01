@@ -240,3 +240,4 @@ poetry run pytest
 
 # TODO:
 # - Add new features
+# - Check stackholder opinio about bot
